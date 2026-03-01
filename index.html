@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="اشتراكاتي">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0f1a">
+<meta name="description" content="إدارة الاشتراكات والمدفوعات">
+<title>اشتراكاتي 💳</title>
+
+<!-- PWA Manifest (inline via JS) -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Apple Touch Icon (generated via canvas) -->
+<link rel="apple-touch-icon" id="apple-icon">
+
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #0a0f1a; --card: #111827; --card2: #0f172a;
+  --border: #1e293b; --border2: #334155;
+  --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+  --primary: #6366f1; --primary2: #4f46e5;
+  --green: #10b981; --red: #ef4444; --purple: #8b5cf6; --cyan: #06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);font-family:'Tajawal',sans-serif;color:var(--text);
+  min-height:100vh;min-height:100dvh;direction:rtl;-webkit-text-size-adjust:100%;
+  overscroll-behavior:none;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+input,select,button{font-family:inherit;-webkit-appearance:none}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.app{max-width:480px;margin:0 auto;padding-bottom:80px;position:relative}
+
+@keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+.btn{padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;transition:.2s;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(0.97);opacity:.9}
+.btn:disabled{opacity:.5}
+.btn-danger{background:linear-gradient(135deg,#dc2626,#b91c1c)}
+.btn-gray{background:var(--border2)}
+.btn-icon{background:rgba(30,41,59,.6);border:1px solid var(--border2);border-radius:8px;padding:6px 8px;font-size:14px;cursor:pointer;width:auto;margin:0;-webkit-tap-highlight-color:transparent}
+.label{display:block;color:var(--text2);font-size:12px;font-weight:500;margin:12px 0 6px}
+.input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border2);background:#0d1220;color:var(--text);font-size:14px;outline:none}
+.input:focus{border-color:var(--primary)}
+.card{background:linear-gradient(135deg,var(--card),var(--card2));border-radius:16px;border:1px solid var(--border);margin-bottom:12px;overflow:hidden;animation:slideUp .3s ease both}
+
+.header{background:linear-gradient(135deg,#0f172a,#1a1040,#0f172a);padding:20px;padding-top:max(20px, env(safe-area-inset-top));border-bottom:1px solid var(--border)}
+.header-row{display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{font-size:28px}
+.title{font-size:18px;font-weight:800;background:linear-gradient(135deg,#e2e8f0,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{color:var(--text3);font-size:11px;margin-top:2px}
+
+.months{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;background:#0d1220;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.months::-webkit-scrollbar{display:none}
+.month-btn{padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.month-btn.on{background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;border-color:var(--primary);font-weight:700}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px}
+.stat{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.06);text-align:center}
+.stat-val{font-size:20px;font-weight:800;color:#f1f5f9}
+.stat-lbl{font-size:10px;color:var(--text2);margin-top:2px}
+
+.tabs{display:flex;gap:4px;padding:8px 16px;background:#0d1220;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.tab{flex:1;padding:10px 6px;border-radius:10px;border:none;background:transparent;color:var(--text3);font-size:12px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tab.on{background:var(--border);color:var(--text);font-weight:700}
+
+.content{padding:12px 16px}
+.empty{text-align:center;padding:40px 20px}
+.empty-icon{font-size:48px;margin-bottom:12px}
+
+.av{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+.av.sm{width:34px;height:34px;font-size:13px}
+
+.grp-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.grp-row{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #0d1220;flex-wrap:wrap;gap:6px}
+.svc-name{color:#cbd5e1;font-size:13px;font-weight:500}
+.svc-detail{color:#475569;font-size:11px;margin-top:1px}
+.badge{padding:4px 10px;border-radius:16px;color:#fff;font-size:11px;font-weight:700}
+
+.s-btns{display:flex;gap:4px;flex-shrink:0}
+.s-btn{padding:5px 8px;border-radius:8px;border:1px solid var(--border2);background:rgba(15,23,42,.8);color:var(--text3);font-size:10px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:.15s}
+.s-btn:active{transform:scale(0.95)}
+.s-btn.paid{background:rgba(16,185,129,.15);color:#34d399;border-color:var(--green)}
+.s-btn.dep{background:rgba(139,92,246,.15);color:#a78bfa;border-color:var(--purple)}
+.s-btn.chg{background:rgba(6,182,212,.15);color:#22d3ee;border-color:var(--cyan)}
+
+.add-sub-row{width:100%;padding:10px;background:transparent;border:1px dashed var(--border2);border-top:none;color:var(--primary);font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+.wa-btns{display:flex;gap:6px}
+.wa-copy{padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--border);color:var(--text);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.wa-open{display:inline-block;padding:6px 10px;border-radius:8px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none}
+.wa-prev{padding:12px 16px;color:var(--text2);font-size:12px;line-height:1.6;white-space:pre-wrap;cursor:pointer}
+
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:1000;animation:fadeIn .15s}
+.mdl{background:var(--card);border-radius:20px 20px 0 0;padding:20px;padding-bottom:max(20px, env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:85vh;max-height:85dvh;overflow-y:auto;animation:slideUp .25s;border:1px solid var(--border)}
+.mdl-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.mdl-hdr h3{font-size:16px;font-weight:600}
+.close{background:var(--border);border:none;color:var(--text2);width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+.toast{position:fixed;bottom:max(20px, env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;padding:10px 24px;border-radius:12px;font-size:13px;font-weight:600;z-index:2000;box-shadow:0 8px 32px rgba(99,102,241,.3);display:none;white-space:nowrap}
+.toast.on{display:block;animation:slideUp .3s}
+
+.sync{position:fixed;top:env(safe-area-inset-top, 0);left:0;right:0;z-index:3000;background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;text-align:center;padding:5px;font-size:11px;font-weight:600;display:none}
+.sync.on{display:block;animation:pulse 1.5s infinite}
+
+.ld{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.sp{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+
+.setup{padding:30px 20px;max-width:480px;margin:0 auto}
+.setup-card{background:var(--card);border-radius:16px;border:1px solid var(--border);padding:16px;margin-bottom:16px}
+.step{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)}
+.step:last-child{border-bottom:none}
+.step-n{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.step-t{color:var(--text);font-size:13px;font-weight:600;margin-bottom:2px}
+.step-d{color:var(--text2);font-size:11px;line-height:1.7}
+
+/* Install banner */
+.install-banner{background:linear-gradient(135deg,#1a1040,#0f172a);border:1px solid var(--primary);border-radius:14px;padding:14px 16px;margin:12px 16px;display:none;animation:slideUp .3s}
+.install-banner.on{display:block}
+</style>
+</head>
+<body>
+
+<div class="app" id="app"></div>
+<div class="sync" id="sync">⏳ جاري الحفظ...</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== PWA SETUP ==========
+// Generate manifest dynamically
+const manifestData = {
+  name: "إدارة الاشتراكات",
+  short_name: "اشتراكاتي",
+  description: "إدارة الاشتراكات والمدفوعات",
+  start_url: "./index.html",
+  display: "standalone",
+  orientation: "portrait",
+  dir: "rtl",
+  lang: "ar",
+  background_color: "#0a0f1a",
+  theme_color: "#0a0f1a",
+  icons: [
+    { src: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#4f46e5"/><text x="96" y="120" font-size="100" text-anchor="middle" fill="white">💳</text></svg>'), sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#4f46e5"/><text x="256" y="320" font-size="260" text-anchor="middle" fill="white">💳</text></svg>'), sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+
+// Create manifest blob and link
+const manifestBlob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+const manifestURL = URL.createObjectURL(manifestBlob);
+document.querySelector('link[rel="manifest"]').href = manifestURL;
+
+// Generate apple touch icon
+try {
+  const canvas = document.createElement('canvas');
+  canvas.width = 180; canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#4f46e5';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, 180, 180, 36);
+  ctx.fill();
+  ctx.font = '90px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('💳', 90, 90);
+  document.getElementById('apple-icon').href = canvas.toDataURL('image/png');
+} catch(e) {}
+
+// Register service worker for offline + installability
+if ('serviceWorker' in navigator) {
+  // Create a minimal service worker inline
+  const swCode = `
+    const CACHE = 'sub-mgr-v2';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])).catch(()=>{}));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => { self.clients.claim(); });
+    self.addEventListener('fetch', e => {
+      if(e.request.url.includes('script.google.com') || e.request.url.includes('fonts.')) {
+        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+        return;
+      }
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const swBlob = new Blob([swCode], {type: 'application/javascript'});
+  const swURL = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL).catch(()=>{});
+}
+
+// Install prompt
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  const el = document.getElementById('install-banner');
+  if(el) el.classList.add('on');
+}
+
+async function installApp() {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const result = await deferredPrompt.userChoice;
+  if(result.outcome === 'accepted') toast('✅ تم تثبيت التطبيق!');
+  deferredPrompt = null;
+  const el = document.getElementById('install-banner');
+  if(el) el.classList.remove('on');
+}
+
+// ========== GLOBALS ==========
+const M_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const $ = id => document.getElementById(id);
+
+let S = {
+  url: localStorage.getItem("sm-url") || "",
+  data: { people: [], subscriptions: [], monthlyRecords: {} },
+  loading: false,
+  view: "dashboard",
+  month: curMonth()
+};
+
+function curMonth(){ const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`; }
+function fmtMonth(m){ const [y,mo]=m.split("-"); return `${M_AR[parseInt(mo)-1]} ${y}`; }
+function nextMonths(c=4){
+  const ms=[],n=new Date();
+  for(let i=0;i<c;i++){const d=new Date(n.getFullYear(),n.getMonth()+i,1);ms.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);}
+  return ms;
+}
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),2500); }
+function showSync(v){ $("sync").classList.toggle("on",v); }
+
+// ========== API ==========
+async function apiGet(url){
+  const r=await fetch(url,{redirect:'follow'});
+  return await r.json();
+}
+async function apiPost(url,action,data){
+  const r=await fetch(url,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,data})});
+  return await r.json();
+}
+async function loadData(){
+  S.loading=true; draw();
+  try{
+    const res=await apiGet(S.url);
+    if(res.success){
+      S.data={people:res.data.people||[],subscriptions:res.data.subscriptions||[],monthlyRecords:res.data.monthlyRecords||{}};
+      if(!S.data.people.length) S.view="people";
+    }
+  }catch(e){ console.error(e); }
+  S.loading=false; draw();
+}
+async function doAction(action,data){
+  showSync(true);
+  try{await apiPost(S.url,action,data);}
+  catch(e){toast("⚠️ خطأ");}
+  showSync(false);
+}
+
+// ========== HELPERS ==========
+function ensureRecs(month){
+  if(!S.data.monthlyRecords[month])S.data.monthlyRecords[month]={};
+  S.data.subscriptions.forEach(s=>{
+    if(!s.active||s.type==="one-time")return;
+    const sid=String(s.id);
+    if(!S.data.monthlyRecords[month][sid])S.data.monthlyRecords[month][sid]={paidByPerson:false,deposited:false,charged:false};
+  });
+}
+function monthSubs(month){
+  ensureRecs(month);
+  return S.data.subscriptions.filter(s=>{
+    if(!s.active&&s.type!=="one-time")return false;
+    if(s.type==="one-time")return!!S.data.monthlyRecords[month]?.[String(s.id)];
+    return true;
+  }).map(s=>({
+    ...s,id:String(s.id),personId:String(s.personId),
+    person:S.data.people.find(p=>String(p.id)===String(s.personId)),
+    status:S.data.monthlyRecords[month]?.[String(s.id)]||{paidByPerson:false,deposited:false,charged:false}
+  }));
+}
+function getStats(month){
+  const ss=monthSubs(month);
+  const tot=ss.reduce((a,s)=>a+Number(s.amount),0);
+  const paid=ss.filter(s=>s.status.paidByPerson).reduce((a,s)=>a+Number(s.amount),0);
+  const dep=ss.filter(s=>s.status.deposited).reduce((a,s)=>a+Number(s.amount),0);
+  const chg=ss.filter(s=>s.status.charged).reduce((a,s)=>a+Number(s.amount),0);
+  return{tot,paid,dep,chg,pend:tot-paid};
+}
+function grouped(month){
+  const gs={};
+  monthSubs(month).forEach(s=>{
+    if(!s.person)return;
+    const pid=String(s.personId);
+    if(!gs[pid])gs[pid]={person:s.person,subs:[],total:0,allPaid:true};
+    gs[pid].subs.push(s);gs[pid].total+=Number(s.amount);
+    if(!s.status.paidByPerson)gs[pid].allPaid=false;
+  });
+  return Object.values(gs);
+}
+function waData(month){
+  const by={};
+  monthSubs(month).forEach(s=>{
+    if(!s.person||s.status.paidByPerson)return;
+    const pid=String(s.personId);
+    if(!by[pid])by[pid]={person:s.person,items:[],total:0};
+    by[pid].items.push(s);by[pid].total+=Number(s.amount);
+  });
+  return Object.values(by);
+}
+function waText(pd,month){
+  let m=`السلام عليكم يا ${pd.person.name} 😊\nده تذكير بالاشتراكات بتاعتك لشهر ${fmtMonth(month)}:\n\n`;
+  pd.items.forEach((s,i)=>{m+=`${i+1}. ${s.service} — ${s.amount} جنيه (يوم ${s.dueDay} من الشهر)\n`;});
+  m+=`\n💰 الإجمالي: ${pd.total} جنيه\n\nياريت تحوّلي المبلغ في أقرب وقت عشان أقدر أودعه في البطاقة قبل الخصم. جزاك الله خيرًا 🤲`;
+  return m;
+}
+function esc(s){return String(s).replace(/'/g,"\\'");}
+
+// ========== ACTIONS ==========
+async function actAddPerson(){
+  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
+  if(!name){toast("⚠️ اكتب الاسم");return;}
+  const id=String(Date.now());
+  S.data.people.push({id,name,phone});
+  closeModal();draw();
+  await doAction("addPerson",{id,name,phone});
+  toast("✅ تم إضافة "+name);
+}
+async function actUpdatePerson(id){
+  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
+  if(!name)return;
+  const p=S.data.people.find(p=>String(p.id)===String(id));
+  if(p){p.name=name;p.phone=phone;}
+  closeModal();draw();
+  await doAction("updatePerson",{id,name,phone});
+  toast("✅ تم التحديث");
+}
+async function actDeletePerson(id){
+  S.data.subscriptions=S.data.subscriptions.filter(s=>String(s.personId)!==String(id));
+  S.data.people=S.data.people.filter(p=>String(p.id)!==String(id));
+  closeModal();draw();
+  await doAction("deletePerson",{id});
+  toast("✅ تم الحذف");
+}
+async function actAddSub(personId){
+  const service=$("f-service").value.trim(),amount=$("f-amount").value,dueDay=$("f-day").value||"1",type=$("f-type").value;
+  if(!service||!amount){toast("⚠️ اكتب اسم الخدمة والمبلغ");return;}
+  const id=String(Date.now());
+  const sub={id,personId:String(personId),service,amount:parseFloat(amount),dueDay:parseInt(dueDay),type,active:true,createdAt:new Date().toISOString()};
+  S.data.subscriptions.push(sub);
+  if(type==="one-time"){if(!S.data.monthlyRecords[S.month])S.data.monthlyRecords[S.month]={};S.data.monthlyRecords[S.month][id]={paidByPerson:false,deposited:false,charged:false};}
+  closeModal();draw();
+  await doAction("addSubscription",{...sub,month:S.month});
+  toast("✅ تم إضافة الاشتراك");
+}
+async function actUpdateSub(id){
+  const service=$("f-service").value.trim(),amount=$("f-amount").value,dueDay=$("f-day").value,type=$("f-type").value;
+  const active=$("f-active")?$("f-active").value==="true":true;
+  if(!service||!amount)return;
+  const s=S.data.subscriptions.find(s=>String(s.id)===String(id));
+  if(s)Object.assign(s,{service,amount:parseFloat(amount),dueDay:parseInt(dueDay),type,active});
+  closeModal();draw();
+  await doAction("updateSubscription",{id,service,amount:parseFloat(amount),dueDay:parseInt(dueDay),type,active});
+  toast("✅ تم التحديث");
+}
+async function actDeleteSub(id){
+  S.data.subscriptions=S.data.subscriptions.filter(s=>String(s.id)!==String(id));
+  closeModal();draw();
+  await doAction("deleteSubscription",{id});
+  toast("✅ تم الحذف");
+}
+async function actToggle(month,subId,field){
+  const sid=String(subId);
+  if(!S.data.monthlyRecords[month])S.data.monthlyRecords[month]={};
+  if(!S.data.monthlyRecords[month][sid])S.data.monthlyRecords[month][sid]={paidByPerson:false,deposited:false,charged:false};
+  S.data.monthlyRecords[month][sid][field]=!S.data.monthlyRecords[month][sid][field];
+  draw();
+  showSync(true);
+  try{await apiPost(S.url,"toggleStatus",{month,subId:sid,field});}catch(e){toast("⚠️ خطأ");}
+  showSync(false);
+}
+
+// ========== MODALS ==========
+function closeModal(){const ov=document.querySelector('.ov');if(ov)ov.remove();}
+function showModal(title,bodyHTML){
+  closeModal();
+  const ov=document.createElement('div');
+  ov.className='ov';
+  ov.innerHTML=`<div class="mdl"><div class="mdl-hdr"><h3>${title}</h3><button class="close" onclick="closeModal()">✕</button></div>${bodyHTML}</div>`;
+  ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
+  document.body.appendChild(ov);
+}
+
+function modalAddPerson(){
+  showModal('إضافة شخص جديد',`
+    <label class="label">الاسم</label><input id="f-name" class="input" placeholder="مثال: أحمد">
+    <label class="label">رقم الهاتف (مع كود البلد)</label><input id="f-phone" class="input" dir="ltr" placeholder="201012345678">
+    <button class="btn" style="margin-top:16px" onclick="actAddPerson()">➕ إضافة</button>
+  `);setTimeout(()=>$("f-name")?.focus(),300);
+}
+function modalEditPerson(id){
+  const p=S.data.people.find(p=>String(p.id)===String(id));if(!p)return;
+  showModal('تعديل البيانات',`
+    <label class="label">الاسم</label><input id="f-name" class="input" value="${p.name}">
+    <label class="label">رقم الهاتف</label><input id="f-phone" class="input" dir="ltr" value="${p.phone||''}">
+    <button class="btn" style="margin-top:16px" onclick="actUpdatePerson('${p.id}')">💾 حفظ</button>
+  `);
+}
+function modalAddSub(personId){
+  showModal('إضافة اشتراك',`
+    <label class="label">اسم الخدمة</label><input id="f-service" class="input" placeholder="مثال: Netflix">
+    <label class="label">المبلغ (جنيه)</label><input id="f-amount" class="input" type="number" dir="ltr" placeholder="250">
+    <label class="label">يوم الخصم</label><input id="f-day" class="input" type="number" dir="ltr" value="1" min="1" max="28">
+    <label class="label">نوع الاشتراك</label><select id="f-type" class="input"><option value="monthly">شهري 🔄</option><option value="one-time">مرة واحدة</option></select>
+    <button class="btn" style="margin-top:16px" onclick="actAddSub('${personId}')">➕ إضافة</button>
+  `);setTimeout(()=>$("f-service")?.focus(),300);
+}
+function modalEditSub(id){
+  const s=S.data.subscriptions.find(s=>String(s.id)===String(id));if(!s)return;
+  showModal('تعديل الاشتراك',`
+    <label class="label">اسم الخدمة</label><input id="f-service" class="input" value="${s.service}">
+    <label class="label">المبلغ</label><input id="f-amount" class="input" type="number" dir="ltr" value="${s.amount}">
+    <label class="label">يوم الخصم</label><input id="f-day" class="input" type="number" dir="ltr" value="${s.dueDay}">
+    <label class="label">النوع</label><select id="f-type" class="input"><option value="monthly" ${s.type==='monthly'?'selected':''}>شهري 🔄</option><option value="one-time" ${s.type==='one-time'?'selected':''}>مرة واحدة</option></select>
+    <label class="label">الحالة</label><select id="f-active" class="input"><option value="true" ${s.active?'selected':''}>نشط ✅</option><option value="false" ${!s.active?'selected':''}>متوقف ⛔</option></select>
+    <button class="btn" style="margin-top:16px" onclick="actUpdateSub('${s.id}')">💾 حفظ</button>
+  `);
+}
+function modalConfirmDel(type,id,name){
+  const extra=type==='person'?'<br><span style="font-size:12px;color:var(--text2)">سيتم حذف كل اشتراكاته</span>':'';
+  const action=type==='person'?`actDeletePerson('${id}')`:`actDeleteSub('${id}')`;
+  showModal('تأكيد الحذف',`
+    <p style="color:#f87171;font-size:14px;margin-bottom:16px;text-align:center">حذف <strong>${name}</strong>؟${extra}</p>
+    <div style="display:flex;gap:8px"><button class="btn btn-danger" style="flex:1" onclick="${action}">نعم</button><button class="btn btn-gray" style="flex:1" onclick="closeModal()">إلغاء</button></div>
+  `);
+}
+function modalWaPreview(idx){
+  const wd=waData(S.month);if(!wd[idx])return;
+  const msg=waText(wd[idx],S.month);
+  showModal('الرسالة كاملة',`
+    <div style="white-space:pre-wrap;color:var(--text);font-size:14px;line-height:1.8;background:#0d1b2a;padding:14px;border-radius:12px">${msg}</div>
+    <button class="btn" style="margin-top:12px" onclick="copyWa(${idx})">📋 نسخ</button>
+  `);
+}
+function copyWa(idx){
+  const wd=waData(S.month);if(!wd[idx])return;
+  const msg=waText(wd[idx],S.month);
+  navigator.clipboard.writeText(msg).then(()=>toast("📋 تم النسخ!")).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=msg;ta.style.position='fixed';ta.style.left='-9999px';
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    toast("📋 تم النسخ!");
+  });
+}
+
+// ========== RENDER ==========
+function draw(){
+  const a=$("app");
+  if(!S.url){a.innerHTML=drawSetup();return;}
+  if(S.loading){a.innerHTML=`<div class="ld"><div class="sp"></div><p style="color:var(--text2);margin-top:14px">جاري التحميل...</p></div>`;return;}
+
+  const m=S.month,st=getStats(m);
+  let h='';
+
+  // Install banner
+  h+=`<div class="install-banner" id="install-banner">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-weight:700;font-size:14px">📲 ثبّت التطبيق</div><div style="color:var(--text2);font-size:11px;margin-top:2px">عشان يبقى على شاشتك الرئيسية</div></div>
+      <button class="btn" style="width:auto;padding:8px 16px;margin:0" onclick="installApp()">تثبيت</button>
+    </div>
+  </div>`;
+
+  h+=`<div class="header"><div class="header-row">
+    <div class="logo"><div class="logo-icon">💳</div><div><div class="title">اشتراكاتي</div><div class="subtitle">مربوط بـ Google Sheet ✅</div></div></div>
+    <div style="display:flex;gap:6px">
+      <button class="btn-icon" onclick="loadData()">🔄</button>
+      <button class="btn-icon" onclick="resetApp()">⚙️</button>
+    </div>
+  </div></div>`;
+
+  h+=`<div class="months">`;
+  nextMonths(4).forEach(mo=>{h+=`<button class="month-btn ${mo===m?'on':''}" onclick="S.month='${mo}';draw()">${fmtMonth(mo)}</button>`;});
+  h+=`</div>`;
+
+  h+=`<div class="stats">
+    <div class="stat" style="background:linear-gradient(135deg,#1e3a5f,#0f2744)"><div class="stat-val">${st.tot}</div><div class="stat-lbl">الإجمالي 💰</div></div>
+    <div class="stat" style="background:${st.pend>0?'linear-gradient(135deg,#5f1e1e,#441010)':'linear-gradient(135deg,#1e5f2e,#104418)'}"><div class="stat-val">${st.pend}</div><div class="stat-lbl">${st.pend>0?'لم يُدفع ⏳':'تمام ✅'}</div></div>
+    <div class="stat" style="background:linear-gradient(135deg,#3a1e5f,#221044)"><div class="stat-val">${st.dep}</div><div class="stat-lbl">تم إيداعه 🏧</div></div>
+    <div class="stat" style="background:linear-gradient(135deg,#1e5f5a,#10443f)"><div class="stat-val">${st.chg}</div><div class="stat-lbl">تم خصمه ✂️</div></div>
+  </div>`;
+
+  h+=`<div class="tabs">`;
+  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"whatsapp",l:"💬 واتساب"}].forEach(t=>{
+    h+=`<button class="tab ${S.view===t.id?'on':''}" onclick="S.view='${t.id}';draw()">${t.l}</button>`;
+  });
+  h+=`</div><div class="content">`;
+
+  if(S.view==="dashboard")h+=drawDash(m);
+  else if(S.view==="people")h+=drawPeople();
+  else if(S.view==="whatsapp")h+=drawWA(m);
+  h+=`</div>`;
+
+  a.innerHTML=h;
+  if(deferredPrompt)showInstallBanner();
+}
+
+function drawDash(m){
+  const gs=grouped(m);
+  if(!gs.length)return`<div class="empty"><div class="empty-icon">📭</div><p style="color:var(--text2)">مفيش اشتراكات للشهر ده</p><p style="color:var(--text3);font-size:12px;margin-top:8px">روح "👥 الأشخاص" عشان تضيف</p></div>`;
+  let h='';
+  gs.forEach(g=>{
+    const avBg=g.allPaid?'linear-gradient(135deg,#10b981,#059669)':'linear-gradient(135deg,#f59e0b,#d97706)';
+    h+=`<div class="card"><div class="grp-header">
+      <div style="display:flex;align-items:center;gap:10px"><div class="av" style="background:${avBg}">${g.person.name.charAt(0)}</div>
+      <div><div style="font-weight:600;font-size:14px">${g.person.name}</div><div style="color:var(--text3);font-size:11px;direction:ltr;text-align:right">${g.person.phone||''}</div></div></div>
+      <div class="badge" style="background:${g.allPaid?'#065f46':'#78350f'}">${g.total} ج</div>
+    </div>`;
+    g.subs.forEach(s=>{
+      h+=`<div class="grp-row"><div style="flex:1;min-width:0"><div class="svc-name">${s.service}</div><div class="svc-detail">${s.amount} ج — يوم ${s.dueDay}</div></div>
+      <div class="s-btns">
+        <button class="s-btn ${s.status.paidByPerson?'paid':''}" onclick="actToggle('${m}','${s.id}','paidByPerson')">${s.status.paidByPerson?'💵 دفع':'⏳'}</button>
+        <button class="s-btn ${s.status.deposited?'dep':''}" onclick="actToggle('${m}','${s.id}','deposited')">${s.status.deposited?'🏧 مودع':'🏧'}</button>
+        <button class="s-btn ${s.status.charged?'chg':''}" onclick="actToggle('${m}','${s.id}','charged')">${s.status.charged?'✅ خُصم':'✂️'}</button>
+      </div></div>`;
+    });
+    h+=`</div>`;
+  });
+  return h;
+}
+
+function drawPeople(){
+  let h=`<button class="btn" onclick="modalAddPerson()">➕ إضافة شخص جديد</button>`;
+  if(!S.data.people.length)return h+`<div class="empty"><div class="empty-icon">👥</div><p style="color:var(--text2)">مفيش أشخاص</p><p style="color:var(--text3);font-size:12px;margin-top:6px">اضغط الزر فوق عشان تبدأ</p></div>`;
+  S.data.people.forEach(p=>{
+    const pid=String(p.id),subs=S.data.subscriptions.filter(s=>String(s.personId)===pid);
+    h+=`<div class="card"><div class="grp-header">
+      <div style="display:flex;align-items:center;gap:10px"><div class="av" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">${p.name.charAt(0)}</div>
+      <div><div style="font-weight:600;font-size:14px">${p.name}</div><div style="color:var(--text3);font-size:11px">${p.phone||''} — ${subs.length} اشتراك</div></div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-icon" onclick="modalEditPerson('${pid}')">✏️</button>
+        <button class="btn-icon" onclick="modalConfirmDel('person','${pid}','${esc(p.name)}')">🗑️</button>
+      </div>
+    </div>`;
+    subs.forEach(s=>{
+      const sid=String(s.id);
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #0d1220">
+        <div><span style="color:${s.active?'var(--text)':'var(--text3)'};font-weight:500;font-size:13px">${s.service}</span>
+        <span style="color:var(--text3);font-size:11px;margin-right:6px">${s.amount} ج — يوم ${s.dueDay} — ${s.type==='monthly'?'شهري🔄':'مرة'}</span>
+        ${!s.active?'<span style="color:var(--red);font-size:10px">(متوقف)</span>':''}</div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-icon" style="font-size:12px;padding:3px 6px" onclick="modalEditSub('${sid}')">✏️</button>
+          <button class="btn-icon" style="font-size:12px;padding:3px 6px" onclick="modalConfirmDel('sub','${sid}','${esc(s.service)}')">🗑️</button>
+        </div></div>`;
+    });
+    h+=`<button class="add-sub-row" onclick="modalAddSub('${pid}')">➕ إضافة اشتراك</button></div>`;
+  });
+  return h;
+}
+
+function drawWA(m){
+  const wd=waData(m);
+  let h=`<div style="text-align:center;margin-bottom:14px"><div style="font-size:14px;color:var(--text2)">رسائل تذكير لشهر <strong style="color:var(--text)">${fmtMonth(m)}</strong></div></div>`;
+  if(!wd.length)return h+`<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2)">الكل دفع!</p></div>`;
+  wd.forEach((pd,idx)=>{
+    const msg=waText(pd,m),preview=msg.substring(0,100).replace(/\n/g,' ')+'...';
+    const waUrl=`https://wa.me/${(pd.person.phone||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`;
+    h+=`<div class="card"><div class="grp-header" style="flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><div class="av sm" style="background:linear-gradient(135deg,#22c55e,#16a34a)">${pd.person.name.charAt(0)}</div>
+      <div><div style="font-weight:600;font-size:14px">${pd.person.name}</div><div style="color:var(--text3);font-size:11px">${pd.total} ج — ${pd.items.length} اشتراك</div></div></div>
+      <div class="wa-btns"><button class="wa-copy" onclick="copyWa(${idx})">📋 نسخ</button><a class="wa-open" href="${waUrl}" target="_blank">💬 واتساب</a></div>
+    </div><div class="wa-prev" onclick="modalWaPreview(${idx})">${preview}</div></div>`;
+  });
+  return h;
+}
+
+// ========== SETUP ==========
+function drawSetup(){
+  return`<div class="setup">
+    <div style="text-align:center;margin-bottom:24px"><div style="font-size:48px;margin-bottom:10px">💳</div>
+    <div class="title" style="font-size:22px">اشتراكاتي</div>
+    <p style="color:var(--text2);font-size:12px;margin-top:6px">ربط التطبيق بـ Google Sheet</p></div>
+    <div class="setup-card">
+      <div class="step"><div class="step-n">1</div><div><div class="step-t">أنشئ Google Sheet جديد</div></div></div>
+      <div class="step"><div class="step-n">2</div><div><div class="step-t">Extensions → Apps Script</div></div></div>
+      <div class="step"><div class="step-n">3</div><div><div class="step-t">الصق كود الـ Backend واحفظ</div></div></div>
+      <div class="step"><div class="step-n">4</div><div><div class="step-t">شغّل setupSheets واقبل الصلاحيات</div></div></div>
+      <div class="step"><div class="step-n">5</div><div><div class="step-t">Deploy → New deployment → Web app</div><div class="step-d">Execute as: <b>Me</b> | Access: <b>Anyone</b></div></div></div>
+      <div class="step"><div class="step-n">6</div><div><div class="step-t">الصق الرابط هنا 👇</div></div></div>
+    </div>
+    <label class="label">رابط الـ Web App</label>
+    <input id="f-url" class="input" dir="ltr" style="font-size:11px" placeholder="https://script.google.com/macros/s/...">
+    <div id="setup-msg"></div>
+    <button class="btn" style="margin-top:14px" onclick="testUrl()">🔗 اختبار واتصال</button>
+  </div>`;
+}
+
+async function testUrl(){
+  const url=$("f-url").value.trim();
+  if(!url){toast("⚠️ الصق الرابط");return;}
+  $("setup-msg").innerHTML='<p style="color:var(--text2);text-align:center;margin-top:8px">⏳ جاري الاختبار...</p>';
+  try{
+    const res=await apiGet(url);
+    if(res.success){
+      $("setup-msg").innerHTML='<p style="color:#34d399;text-align:center;margin-top:8px;font-weight:600">✅ تم الاتصال!</p>';
+      localStorage.setItem("sm-url",url);S.url=url;
+      setTimeout(()=>loadData(),600);
+    }else throw new Error(res.error||"Failed");
+  }catch(e){
+    $("setup-msg").innerHTML=`<div style="color:#f87171;font-size:12px;margin-top:8px;padding:12px;background:rgba(239,68,68,.1);border-radius:8px">
+      ❌ مقدرتش أتصل. تأكد من:<br>• الرابط صحيح<br>• Deploy كـ Web App<br>• Access = Anyone<br>• شغّلت setupSheets<br><small style="color:#94a3b8">${e.message}</small></div>`;
+  }
+}
+
+function resetApp(){
+  if(confirm("إعادة ضبط الإعدادات؟ (مش هيمسح بيانات الشيت)")){
+    localStorage.removeItem("sm-url");S.url="";draw();
+  }
+}
+
+// ========== INIT ==========
+if(S.url)loadData(); else{S.loading=false;draw();}
+</script>
+</body>
+</html>
