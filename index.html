@@ -865,31 +865,35 @@ function openWhatsApp(idx){
   const wd=waData(S.month);if(!wd[idx])return;
   const msg=waText(wd[idx],S.month);
   const phone=(wd[idx].person.phone||'').replace(/[^0-9]/g,'');
-  const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-  const w = window.open(waUrl,'_blank');
-  if(!w){
-    window.location.href = waUrl;
-  }
+  const waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+  // Try multiple methods for PWA compatibility
+  const link=document.createElement('a');
+  link.href=waUrl;
+  link.target='_blank';
+  link.rel='noopener noreferrer';
+  link.style.display='none';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(()=>document.body.removeChild(link),100);
 }
 
 function drawWA(m){
   const wd=waData(m);
-  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div style="font-size:15px;color:var(--text2)">رسائل تذكير لشهر <strong style="color:var(--text)">${fmtMonth(m)}</strong></div>
-    <button class="btn-icon" onclick="modalEditWaTemplate()" title="تعديل صيغة الرسالة">✏️</button>
-  </div>`;
-  if(!wd.length)return h+`<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2);font-size:15px">الكل دفع!</p></div>`;
-  wd.forEach((pd,idx)=>{
-    const msg=waText(pd,m),preview=msg.substring(0,120).replace(/\n/g,' ')+'...';
-    const phone=(pd.person.phone||'').replace(/[^0-9]/g,'');
-    h+=`<div class="card"><div class="grp-header" style="flex-wrap:wrap;gap:8px">
-      <div style="display:flex;align-items:center;gap:10px"><div class="av sm" style="background:linear-gradient(135deg,#22c55e,#16a34a)">${pd.person.name.charAt(0)}</div>
-      <div><div style="font-weight:600;font-size:16px">${pd.person.name}</div><div style="color:var(--text3);font-size:13px">${pd.total} ج — ${pd.items.length} اشتراك</div></div></div>
-      <div class="wa-btns">
-        <button class="wa-copy" onclick="copyWa(${idx})">📋 نسخ</button>
-        <a class="wa-open" href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">💬 واتساب</a>
-      </div>
-    </div><div class="wa-prev" onclick="modalWaPreview(${idx})">${preview}</div></div>`;
+  let h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+  h+='<div style="font-size:15px;color:var(--text2)">رسائل تذكير لشهر <strong style="color:var(--text)">'+fmtMonth(m)+'</strong></div>';
+  h+='<button class="btn-icon" onclick="modalEditWaTemplate()" title="تعديل صيغة الرسالة">✏️</button>';
+  h+='</div>';
+  if(!wd.length)return h+'<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2);font-size:15px">الكل دفع!</p></div>';
+  wd.forEach(function(pd,idx){
+    var preview=waText(pd,m).substring(0,120).replace(/\n/g,' ')+'...';
+    h+='<div class="card"><div class="grp-header" style="flex-wrap:wrap;gap:8px">';
+    h+='<div style="display:flex;align-items:center;gap:10px"><div class="av sm" style="background:linear-gradient(135deg,#22c55e,#16a34a)">'+pd.person.name.charAt(0)+'</div>';
+    h+='<div><div style="font-weight:600;font-size:16px">'+pd.person.name+'</div><div style="color:var(--text3);font-size:13px">'+pd.total+' ج — '+pd.items.length+' اشتراك</div></div></div>';
+    h+='<div class="wa-btns">';
+    h+='<button class="wa-copy" onclick="copyWa('+idx+')">📋 نسخ</button>';
+    h+='<button class="wa-open" onclick="openWhatsApp('+idx+')">💬 واتساب</button>';
+    h+='</div>';
+    h+='</div><div class="wa-prev" onclick="modalWaPreview('+idx+')">'+preview+'</div></div>';
   });
   return h;
 }
