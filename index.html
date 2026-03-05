@@ -278,8 +278,7 @@ async function loadData(){
       S.data={
         people:(res.data.people||[]).map(p=>({
           ...p,
-          balance: p.balance || 0,
-          email: p.email || ''
+          balance: p.balance || 0
         })),
         subscriptions:res.data.subscriptions||[],
         monthlyRecords:res.data.monthlyRecords||{},
@@ -394,33 +393,12 @@ const DEFAULT_WA_TEMPLATE = {
   closing: 'ياريت تحوّلي المبلغ في أقرب وقت عشان أقدر أودعه في البطاقة قبل الخصم. جزاك الله خيرًا 🤲'
 };
 
-const DEFAULT_EMAIL_TEMPLATE = {
-  subject: 'تذكير باشتراكات شهر {month}',
-  body: `مرحباً {name}،
-
-هذا تذكير آلي بالاشتراكات المستحقة لشهر {month}:
-
-{items}
-
-الإجمالي المطلوب: {total} جنيه
-
-يرجى تحويل المبلغ في أقرب وقت.
-شكراً لتعاونكم.
-
-— نظام إدارة الاشتراكات`
-};
 
 function getWaTemplate(){
   try{ return JSON.parse(localStorage.getItem('sm-wa-template')) || {...DEFAULT_WA_TEMPLATE}; }
   catch(e){ return {...DEFAULT_WA_TEMPLATE}; }
 }
 function saveWaTemplate(t){ localStorage.setItem('sm-wa-template', JSON.stringify(t)); }
-
-function getEmailTemplate(){
-  try{ return JSON.parse(localStorage.getItem('sm-email-template')) || {...DEFAULT_EMAIL_TEMPLATE}; }
-  catch(e){ return {...DEFAULT_EMAIL_TEMPLATE}; }
-}
-function saveEmailTemplate(t){ localStorage.setItem('sm-email-template', JSON.stringify(t)); }
 
 function waText(pd,month){
   const t = getWaTemplate();
@@ -432,20 +410,6 @@ function waText(pd,month){
   m += '\n' + t.totalLine.replace('{total}', pd.total) + '\n\n';
   m += t.closing;
   return m;
-}
-
-function emailText(pd,month){
-  const t = getEmailTemplate();
-  let items = '';
-  pd.items.forEach((s,i)=>{
-    items += `${i+1}. ${s.service} — ${s.amount} جنيه (يوم ${s.dueDay})\n`;
-  });
-  let body = t.body
-    .replace('{name}', pd.person.name)
-    .replace('{month}', fmtMonth(month))
-    .replace('{items}', items)
-    .replace('{total}', pd.total);
-  return {subject: t.subject.replace('{month}', fmtMonth(month)), body};
 }
 
 function esc(s){return String(s).replace(/'/g,"\\'");}
@@ -472,22 +436,22 @@ function saveDeposits() {
 
 // ========== ACTIONS ==========
 async function actAddPerson(){
-  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim(),email=$("f-email").value.trim();
+  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
   if(!name){toast("⚠️ اكتب الاسم");return;}
   const id=String(Date.now());
-  S.data.people.push({id,name,phone,email,balance:0});
+  S.data.people.push({id,name,phone,balance:0});
   closeModal();draw();
-  await doAction("addPerson",{id,name,phone,email,balance:0});
+  await doAction("addPerson",{id,name,phone,balance:0});
   toast("✅ تم إضافة "+name);
 }
 
 async function actUpdatePerson(id){
-  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim(),email=$("f-email").value.trim();
+  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
   if(!name)return;
   const p=S.data.people.find(p=>String(p.id)===String(id));
-  if(p){p.name=name;p.phone=phone;p.email=email;}
+  if(p){p.name=name;p.phone=phone;}
   closeModal();draw();
-  await doAction("updatePerson",{id,name,phone,email,balance:p?.balance||0});
+  await doAction("updatePerson",{id,name,phone,balance:p?.balance||0});
   toast("✅ تم التحديث");
 }
 
@@ -551,7 +515,7 @@ async function actAddBalance(personId){
   p.balance = (p.balance || 0) + amount;
   saveBalanceLog(personId, amount, note);
   closeModal();draw();
-  await doAction("updatePerson",{id:personId,name:p.name,phone:p.phone,email:p.email,balance:p.balance});
+  await doAction("updatePerson",{id:personId,name:p.name,phone:p.phone,balance:p.balance});
   toast("✅ تم إضافة رصيد");
 }
 
@@ -588,20 +552,15 @@ function addDepositItem(amount, note){
   toast("✅ تم تسجيل الإيداع");
 }
 
-async function actSendReminder(idx, method){
-  const wd=waData(S.month);
-  if(!wd[idx])return;
-  if(method === 'email'){
-    const person = wd[idx].person;
-    if(!person.email){toast("⚠️ لا يوجد بريد إلكتروني");return;}
-    const emailData = emailText(wd[idx], S.month);
-    showSync(true);
-    try{
-      await doAction("sendReminder",{email:person.email,subject:emailData.subject,body:emailData.body});
-      toast("✅ تم إرسال البريد!");
-    }catch(e){toast("⚠️ خطأ في الإرسال");}
-    showSync(false);
-  }
+function deleteDepositItem(month, idx){
+  if(!S.data.deposits[month] || !S.data.deposits[month].items[idx]) return;
+  const item = S.data.deposits[month].items[idx];
+  S.data.deposits[month].total -= item.amount;
+  S.data.deposits[month].items.splice(idx, 1);
+  if(S.data.deposits[month].items.length === 0) delete S.data.deposits[month];
+  saveDeposits();
+  draw();
+  toast("🗑️ تم حذف الإيداع");
 }
 
 // Auto-deduct runs synchronously to update state before draw, then syncs to API in background
@@ -627,7 +586,7 @@ function runAutoDeduct(month){
       anyDeducted = true;
       saveBalanceLog(pid, -deducted, `خصم تلقائي من الرصيد لشهر ${fmtMonth(month)}`);
       // Sync to API in background (fire and forget)
-      doAction("updatePerson",{id:pid,name:p.name,phone:p.phone,email:p.email,balance:p.balance});
+      doAction("updatePerson",{id:pid,name:p.name,phone:p.phone,balance:p.balance});
     }
   });
   if(anyDeducted){
@@ -651,7 +610,6 @@ function modalAddPerson(){
   showModal('إضافة شخص جديد',`
     <label class="label">الاسم</label><input id="f-name" class="input" placeholder="مثال: أحمد">
     <label class="label">رقم الهاتف (مع كود البلد)</label><input id="f-phone" class="input" dir="ltr" placeholder="201012345678">
-    <label class="label">البريد الإلكتروني</label><input id="f-email" class="input" type="email" placeholder="example@mail.com">
     <button class="btn" style="margin-top:16px" onclick="actAddPerson()">➕ إضافة</button>
   `);setTimeout(()=>$("f-name")?.focus(),300);
 }
@@ -661,7 +619,6 @@ function modalEditPerson(id){
   showModal('تعديل البيانات',`
     <label class="label">الاسم</label><input id="f-name" class="input" value="${p.name}">
     <label class="label">رقم الهاتف</label><input id="f-phone" class="input" dir="ltr" value="${p.phone||''}">
-    <label class="label">البريد الإلكتروني</label><input id="f-email" class="input" type="email" value="${p.email||''}">
     <label class="label">الرصيد الحالي</label><div style="padding:12px;background:rgba(139,92,246,.1);border-radius:8px;border:1px solid var(--border2);color:var(--text)">${p.balance||0} جنيه</div>
     <button class="btn" style="margin-top:16px" onclick="actUpdatePerson('${p.id}')">💾 حفظ</button>
   `);
@@ -759,33 +716,6 @@ function resetWaTemplate(){
   toast('🔄 تم استعادة الصيغة الافتراضية');
 }
 
-function modalEditEmailTemplate(){
-  const t = getEmailTemplate();
-  showModal('✏️ تعديل صيغة البريد الإلكتروني',`
-    <div style="color:var(--text3);font-size:12px;margin-bottom:10px;line-height:1.6">المتغيرات المتاحة: <code style="color:var(--cyan)">{name}</code> <code style="color:var(--cyan)">{month}</code> <code style="color:var(--cyan)">{items}</code> <code style="color:var(--cyan)">{total}</code></div>
-    <label class="label">الموضوع</label><input id="f-email-subject" class="input" value="${t.subject}">
-    <label class="label">النص</label><textarea id="f-email-body" class="input" rows="6" style="resize:vertical">${t.body}</textarea>
-    <button class="btn" style="margin-top:16px" onclick="saveEmailTemplateModal()">💾 حفظ</button>
-    <button class="btn btn-gray" style="margin-top:4px" onclick="resetEmailTemplate()">🔄 استعادة الافتراضي</button>
-  `);
-}
-
-function saveEmailTemplateModal(){
-  const t = {
-    subject: $('f-email-subject').value,
-    body: $('f-email-body').value
-  };
-  saveEmailTemplate(t);
-  closeModal(); draw();
-  toast('✅ تم حفظ صيغة البريد');
-}
-
-function resetEmailTemplate(){
-  saveEmailTemplate({...DEFAULT_EMAIL_TEMPLATE});
-  closeModal(); draw();
-  toast('🔄 تم استعادة الصيغة الافتراضية');
-}
-
 // ========== RENDER ==========
 function draw(){
   const a=$("app");
@@ -826,14 +756,14 @@ function draw(){
   </div>`;
 
   h+=`<div class="tabs">`;
-  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"reminders",l:"🔔 تذكير"}].forEach(t=>{
+  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"whatsapp",l:"💬 واتساب"}].forEach(t=>{
     h+=`<button class="tab ${S.view===t.id?'on':''}" onclick="S.view='${t.id}';draw()">${t.l}</button>`;
   });
   h+=`</div><div class="content">`;
 
   if(S.view==="dashboard")h+=drawDash(m);
   else if(S.view==="people")h+=drawPeople();
-  else if(S.view==="reminders")h+=drawReminders(m);
+  else if(S.view==="whatsapp")h+=drawWA(m);
   h+=`</div>`;
 
   a.innerHTML=h;
@@ -885,11 +815,14 @@ function drawDash(m){
           <div style="font-size:12px;color:var(--primary)">▼</div>
         </div>
         <div class="expandable-content">`;
-    deps.items.forEach(item=>{
+    deps.items.forEach((item,i)=>{
       const date = new Date(item.date).toLocaleDateString('ar-EG');
-      h += `<div style="padding:8px 16px;border-bottom:1px solid #0d1220;display:flex;justify-content:space-between">
+      h += `<div style="padding:8px 16px;border-bottom:1px solid #0d1220;display:flex;justify-content:space-between;align-items:center">
         <div><div style="color:var(--text)">${item.note}</div><div style="color:var(--text3);font-size:11px">${date}</div></div>
-        <div style="color:var(--primary);font-weight:600">${item.amount}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:var(--primary);font-weight:600">${item.amount}</span>
+          <button class="btn-icon" style="font-size:12px;padding:3px 6px" onclick="event.stopPropagation();deleteDepositItem('${m}',${i})">🗑️</button>
+        </div>
       </div>`;
     });
     h += `</div></div></div>`;
@@ -939,25 +872,22 @@ function openWhatsApp(idx){
   }
 }
 
-function drawReminders(m){
+function drawWA(m){
   const wd=waData(m);
   let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div style="font-size:15px;color:var(--text2)">تذكيرات لشهر <strong style="color:var(--text)">${fmtMonth(m)}</strong></div>
-    <div style="display:flex;gap:4px">
-      <button class="btn-icon" onclick="modalEditWaTemplate()" title="تعديل صيغة الواتساب">📱</button>
-      <button class="btn-icon" onclick="modalEditEmailTemplate()" title="تعديل صيغة البريد">✉️</button>
-    </div>
+    <div style="font-size:15px;color:var(--text2)">رسائل تذكير لشهر <strong style="color:var(--text)">${fmtMonth(m)}</strong></div>
+    <button class="btn-icon" onclick="modalEditWaTemplate()" title="تعديل صيغة الرسالة">✏️</button>
   </div>`;
   if(!wd.length)return h+`<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2);font-size:15px">الكل دفع!</p></div>`;
   wd.forEach((pd,idx)=>{
     const msg=waText(pd,m),preview=msg.substring(0,120).replace(/\n/g,' ')+'...';
+    const phone=(pd.person.phone||'').replace(/[^0-9]/g,'');
     h+=`<div class="card"><div class="grp-header" style="flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px"><div class="av sm" style="background:linear-gradient(135deg,#22c55e,#16a34a)">${pd.person.name.charAt(0)}</div>
       <div><div style="font-weight:600;font-size:16px">${pd.person.name}</div><div style="color:var(--text3);font-size:13px">${pd.total} ج — ${pd.items.length} اشتراك</div></div></div>
       <div class="wa-btns">
         <button class="wa-copy" onclick="copyWa(${idx})">📋 نسخ</button>
-        <button class="wa-open" onclick="openWhatsApp(${idx})">💬 واتساب</button>
-        ${pd.person.email ? `<button class="wa-copy" onclick="actSendReminder(${idx}, 'email')" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff">✉️ بريد</button>` : ''}
+        <a class="wa-open" href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">💬 واتساب</a>
       </div>
     </div><div class="wa-prev" onclick="modalWaPreview(${idx})">${preview}</div></div>`;
   });
