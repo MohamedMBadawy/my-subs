@@ -24,8 +24,7 @@
   --bg: #0a0f1a; --card: #111827; --card2: #0f172a;
   --border: #1e293b; --border2: #334155;
   --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
-  --primary: #6366f1; --primary2: #4f46e5;
-  --green: #10b981; --red: #ef4444; --purple: #8b5cf6; --cyan: #06b6d4;
+  --primary: #6366f1; --primary2: #4f46e5; --green: #10b981; --red: #ef4444; --purple: #8b5cf6; --cyan: #06b6d4;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -94,7 +93,6 @@ input,select,button{font-family:inherit;-webkit-appearance:none}
 .s-btn{padding:7px 10px;border-radius:8px;border:1px solid var(--border2);background:rgba(15,23,42,.8);color:var(--text3);font-size:12px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:.15s}
 .s-btn:active{transform:scale(0.95)}
 .s-btn.paid{background:rgba(16,185,129,.15);color:#34d399;border-color:var(--green)}
-.s-btn.dep{background:rgba(139,92,246,.15);color:#a78bfa;border-color:var(--purple)}
 .s-btn.chg{background:rgba(6,182,212,.15);color:#22d3ee;border-color:var(--cyan)}
 
 .add-sub-row{width:100%;padding:10px;background:transparent;border:1px dashed var(--border2);border-top:none;color:var(--primary);font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -103,6 +101,16 @@ input,select,button{font-family:inherit;-webkit-appearance:none}
 .wa-copy{padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--border);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .wa-open{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
 .wa-prev{padding:12px 16px;color:var(--text2);font-size:14px;line-height:1.7;white-space:pre-wrap;cursor:pointer}
+
+.balance-badge{display:inline-block;background:linear-gradient(135deg,#8b5cf6,#a78bfa);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-top:4px}
+
+.deposit-section{background:rgba(99,102,241,.1);border:1px solid var(--primary);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.deposit-section h4{color:var(--text);font-size:14px;font-weight:600;margin-bottom:8px}
+
+.expandable{cursor:pointer;user-select:none}
+.expandable-header{padding:12px 16px;background:rgba(30,41,59,.3);border-radius:10px;display:flex;justify-content:space-between;align-items:center}
+.expandable-content{display:none;padding:12px 16px;border-top:1px solid var(--border2)}
+.expandable-content.open{display:block}
 
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:1000;animation:fadeIn .15s}
 .mdl{background:var(--card);border-radius:20px 20px 0 0;padding:20px;padding-bottom:max(20px, env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:85vh;max-height:85dvh;overflow-y:auto;animation:slideUp .25s;border:1px solid var(--border)}
@@ -231,7 +239,7 @@ const $ = id => document.getElementById(id);
 
 let S = {
   url: localStorage.getItem("sm-url") || "",
-  data: { people: [], subscriptions: [], monthlyRecords: {} },
+  data: { people: [], subscriptions: [], monthlyRecords: {}, deposits: {} },
   loading: false,
   view: "dashboard",
   month: curMonth()
@@ -247,6 +255,11 @@ function nextMonths(c=4){
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),2500); }
 function showSync(v){ $("sync").classList.toggle("on",v); }
 
+// Boolean parsing helper
+function parseBool(v) {
+  return v === true || v === 'true' || v === 'TRUE';
+}
+
 // ========== API ==========
 async function apiGet(url){
   const r=await fetch(url,{redirect:'follow'});
@@ -256,17 +269,60 @@ async function apiPost(url,action,data){
   const r=await fetch(url,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,data})});
   return await r.json();
 }
+
 async function loadData(){
   S.loading=true; draw();
   try{
     const res=await apiGet(S.url);
     if(res.success){
-      S.data={people:res.data.people||[],subscriptions:res.data.subscriptions||[],monthlyRecords:res.data.monthlyRecords||{}};
+      S.data={
+        people:(res.data.people||[]).map(p=>({
+          ...p,
+          balance: p.balance || 0,
+          email: p.email || ''
+        })),
+        subscriptions:res.data.subscriptions||[],
+        monthlyRecords:res.data.monthlyRecords||{},
+        deposits:res.data.deposits||{}
+      };
+
+      // Parse boolean values in monthlyRecords to handle API string booleans
+      Object.keys(S.data.monthlyRecords).forEach(month=>{
+        Object.keys(S.data.monthlyRecords[month]).forEach(subId=>{
+          const rec = S.data.monthlyRecords[month][subId];
+          if(rec){
+            rec.paidByPerson = parseBool(rec.paidByPerson);
+            rec.charged = parseBool(rec.charged);
+            rec.autoDeducted = parseBool(rec.autoDeducted);
+          }
+        });
+      });
+
+      // Load localStorage backup for monthlyRecords as fallback
+      try{
+        const lsBackup = JSON.parse(localStorage.getItem('sm-monthly-backup'))||{};
+        Object.keys(lsBackup).forEach(month=>{
+          if(!S.data.monthlyRecords[month]) S.data.monthlyRecords[month]={};
+          Object.keys(lsBackup[month]).forEach(subId=>{
+            if(!S.data.monthlyRecords[month][subId]){
+              S.data.monthlyRecords[month][subId] = lsBackup[month][subId];
+            }
+          });
+        });
+      }catch(e){}
+
+      // Load deposits from localStorage
+      try{
+        const lsDeposits = JSON.parse(localStorage.getItem('sm-deposits'))||{};
+        Object.assign(S.data.deposits, lsDeposits);
+      }catch(e){}
+
       if(!S.data.people.length) S.view="people";
     }
   }catch(e){ console.error(e); }
   S.loading=false; draw();
 }
+
 async function doAction(action,data){
   showSync(true);
   try{await apiPost(S.url,action,data);}
@@ -280,9 +336,10 @@ function ensureRecs(month){
   S.data.subscriptions.forEach(s=>{
     if(!s.active||s.type==="one-time")return;
     const sid=String(s.id);
-    if(!S.data.monthlyRecords[month][sid])S.data.monthlyRecords[month][sid]={paidByPerson:false,deposited:false,charged:false};
+    if(!S.data.monthlyRecords[month][sid])S.data.monthlyRecords[month][sid]={paidByPerson:false,charged:false,autoDeducted:false};
   });
 }
+
 function monthSubs(month){
   ensureRecs(month);
   return S.data.subscriptions.filter(s=>{
@@ -292,17 +349,19 @@ function monthSubs(month){
   }).map(s=>({
     ...s,id:String(s.id),personId:String(s.personId),
     person:S.data.people.find(p=>String(p.id)===String(s.personId)),
-    status:S.data.monthlyRecords[month]?.[String(s.id)]||{paidByPerson:false,deposited:false,charged:false}
+    status:S.data.monthlyRecords[month]?.[String(s.id)]||{paidByPerson:false,charged:false,autoDeducted:false}
   }));
 }
+
 function getStats(month){
   const ss=monthSubs(month);
   const tot=ss.reduce((a,s)=>a+Number(s.amount),0);
   const paid=ss.filter(s=>s.status.paidByPerson).reduce((a,s)=>a+Number(s.amount),0);
-  const dep=ss.filter(s=>s.status.deposited).reduce((a,s)=>a+Number(s.amount),0);
+  const deps = (S.data.deposits[month] && S.data.deposits[month].items) ? S.data.deposits[month].items.reduce((a,d)=>a+Number(d.amount),0) : 0;
   const chg=ss.filter(s=>s.status.charged).reduce((a,s)=>a+Number(s.amount),0);
-  return{tot,paid,dep,chg,pend:tot-paid};
+  return{tot,paid,deps,chg,pend:tot-paid};
 }
+
 function grouped(month){
   const gs={};
   monthSubs(month).forEach(s=>{
@@ -314,6 +373,7 @@ function grouped(month){
   });
   return Object.values(gs);
 }
+
 function waData(month){
   const by={};
   monthSubs(month).forEach(s=>{
@@ -324,6 +384,7 @@ function waData(month){
   });
   return Object.values(by);
 }
+
 // Default WhatsApp message template
 const DEFAULT_WA_TEMPLATE = {
   greeting: 'السلام عليكم يا {name} 😊',
@@ -333,11 +394,33 @@ const DEFAULT_WA_TEMPLATE = {
   closing: 'ياريت تحوّلي المبلغ في أقرب وقت عشان أقدر أودعه في البطاقة قبل الخصم. جزاك الله خيرًا 🤲'
 };
 
+const DEFAULT_EMAIL_TEMPLATE = {
+  subject: 'تذكير باشتراكات شهر {month}',
+  body: `مرحباً {name}،
+
+هذا تذكير آلي بالاشتراكات المستحقة لشهر {month}:
+
+{items}
+
+الإجمالي المطلوب: {total} جنيه
+
+يرجى تحويل المبلغ في أقرب وقت.
+شكراً لتعاونكم.
+
+— نظام إدارة الاشتراكات`
+};
+
 function getWaTemplate(){
   try{ return JSON.parse(localStorage.getItem('sm-wa-template')) || {...DEFAULT_WA_TEMPLATE}; }
   catch(e){ return {...DEFAULT_WA_TEMPLATE}; }
 }
 function saveWaTemplate(t){ localStorage.setItem('sm-wa-template', JSON.stringify(t)); }
+
+function getEmailTemplate(){
+  try{ return JSON.parse(localStorage.getItem('sm-email-template')) || {...DEFAULT_EMAIL_TEMPLATE}; }
+  catch(e){ return {...DEFAULT_EMAIL_TEMPLATE}; }
+}
+function saveEmailTemplate(t){ localStorage.setItem('sm-email-template', JSON.stringify(t)); }
 
 function waText(pd,month){
   const t = getWaTemplate();
@@ -350,27 +433,64 @@ function waText(pd,month){
   m += t.closing;
   return m;
 }
+
+function emailText(pd,month){
+  const t = getEmailTemplate();
+  let items = '';
+  pd.items.forEach((s,i)=>{
+    items += `${i+1}. ${s.service} — ${s.amount} جنيه (يوم ${s.dueDay})\n`;
+  });
+  let body = t.body
+    .replace('{name}', pd.person.name)
+    .replace('{month}', fmtMonth(month))
+    .replace('{items}', items)
+    .replace('{total}', pd.total);
+  return {subject: t.subject.replace('{month}', fmtMonth(month)), body};
+}
+
 function esc(s){return String(s).replace(/'/g,"\\'");}
+
+function saveBalanceLog(personId, amount, note) {
+  try {
+    let log = JSON.parse(localStorage.getItem('sm-balance-log')) || [];
+    log.push({personId, amount, note, date: new Date().toISOString()});
+    localStorage.setItem('sm-balance-log', JSON.stringify(log));
+  } catch(e) {}
+}
+
+function saveMonthlyRecordsBackup() {
+  try {
+    localStorage.setItem('sm-monthly-backup', JSON.stringify(S.data.monthlyRecords));
+  } catch(e) {}
+}
+
+function saveDeposits() {
+  try {
+    localStorage.setItem('sm-deposits', JSON.stringify(S.data.deposits));
+  } catch(e) {}
+}
 
 // ========== ACTIONS ==========
 async function actAddPerson(){
-  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
+  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim(),email=$("f-email").value.trim();
   if(!name){toast("⚠️ اكتب الاسم");return;}
   const id=String(Date.now());
-  S.data.people.push({id,name,phone});
+  S.data.people.push({id,name,phone,email,balance:0});
   closeModal();draw();
-  await doAction("addPerson",{id,name,phone});
+  await doAction("addPerson",{id,name,phone,email,balance:0});
   toast("✅ تم إضافة "+name);
 }
+
 async function actUpdatePerson(id){
-  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
+  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim(),email=$("f-email").value.trim();
   if(!name)return;
   const p=S.data.people.find(p=>String(p.id)===String(id));
-  if(p){p.name=name;p.phone=phone;}
+  if(p){p.name=name;p.phone=phone;p.email=email;}
   closeModal();draw();
-  await doAction("updatePerson",{id,name,phone});
+  await doAction("updatePerson",{id,name,phone,email,balance:p?.balance||0});
   toast("✅ تم التحديث");
 }
+
 async function actDeletePerson(id){
   S.data.subscriptions=S.data.subscriptions.filter(s=>String(s.personId)!==String(id));
   S.data.people=S.data.people.filter(p=>String(p.id)!==String(id));
@@ -378,17 +498,20 @@ async function actDeletePerson(id){
   await doAction("deletePerson",{id});
   toast("✅ تم الحذف");
 }
+
 async function actAddSub(personId){
   const service=$("f-service").value.trim(),amount=$("f-amount").value,dueDay=$("f-day").value||"1",type=$("f-type").value;
   if(!service||!amount){toast("⚠️ اكتب اسم الخدمة والمبلغ");return;}
   const id=String(Date.now());
   const sub={id,personId:String(personId),service,amount:parseFloat(amount),dueDay:parseInt(dueDay),type,active:true,createdAt:new Date().toISOString()};
   S.data.subscriptions.push(sub);
-  if(type==="one-time"){if(!S.data.monthlyRecords[S.month])S.data.monthlyRecords[S.month]={};S.data.monthlyRecords[S.month][id]={paidByPerson:false,deposited:false,charged:false};}
+  if(type==="one-time"){if(!S.data.monthlyRecords[S.month])S.data.monthlyRecords[S.month]={};S.data.monthlyRecords[S.month][id]={paidByPerson:false,charged:false,autoDeducted:false};}
+  saveMonthlyRecordsBackup();
   closeModal();draw();
   await doAction("addSubscription",{...sub,month:S.month});
   toast("✅ تم إضافة الاشتراك");
 }
+
 async function actUpdateSub(id){
   const service=$("f-service").value.trim(),amount=$("f-amount").value,dueDay=$("f-day").value,type=$("f-type").value;
   const active=$("f-active")?$("f-active").value==="true":true;
@@ -399,21 +522,118 @@ async function actUpdateSub(id){
   await doAction("updateSubscription",{id,service,amount:parseFloat(amount),dueDay:parseInt(dueDay),type,active});
   toast("✅ تم التحديث");
 }
+
 async function actDeleteSub(id){
   S.data.subscriptions=S.data.subscriptions.filter(s=>String(s.id)!==String(id));
   closeModal();draw();
   await doAction("deleteSubscription",{id});
   toast("✅ تم الحذف");
 }
+
 async function actToggle(month,subId,field){
   const sid=String(subId);
   if(!S.data.monthlyRecords[month])S.data.monthlyRecords[month]={};
-  if(!S.data.monthlyRecords[month][sid])S.data.monthlyRecords[month][sid]={paidByPerson:false,deposited:false,charged:false};
+  if(!S.data.monthlyRecords[month][sid])S.data.monthlyRecords[month][sid]={paidByPerson:false,charged:false,autoDeducted:false};
   S.data.monthlyRecords[month][sid][field]=!S.data.monthlyRecords[month][sid][field];
+  saveMonthlyRecordsBackup();
   draw();
   showSync(true);
   try{await apiPost(S.url,"toggleStatus",{month,subId:sid,field});}catch(e){toast("⚠️ خطأ");}
   showSync(false);
+}
+
+async function actAddBalance(personId){
+  const p = S.data.people.find(p=>String(p.id)===String(personId));
+  if(!p) return;
+  const amount = parseFloat($("f-balance-amount").value);
+  const note = $("f-balance-note").value.trim();
+  if(!amount || amount <= 0){toast("⚠️ اكتب المبلغ الصحيح");return;}
+  p.balance = (p.balance || 0) + amount;
+  saveBalanceLog(personId, amount, note);
+  closeModal();draw();
+  await doAction("updatePerson",{id:personId,name:p.name,phone:p.phone,email:p.email,balance:p.balance});
+  toast("✅ تم إضافة رصيد");
+}
+
+async function actAddDeposit(type){
+  if(type === 'total'){
+    const ss = monthSubs(S.month);
+    const amount = ss.filter(s=>s.status.paidByPerson).reduce((a,s)=>a+Number(s.amount),0);
+    if(amount <= 0){toast("⚠️ لا توجد مبالغ مدفوعة");return;}
+    addDepositItem(amount, 'إيداع المبالغ المدفوعة');
+  } else if(type === 'custom'){
+    showModal('إيداع مخصص',`
+      <label class="label">المبلغ (جنيه)</label><input id="f-deposit-custom" class="input" type="number" dir="ltr" placeholder="0">
+      <label class="label">ملاحظة (اختياري)</label><input id="f-deposit-note" class="input" placeholder="">
+      <button class="btn" style="margin-top:16px" onclick="submitCustomDeposit()">💾 حفظ</button>
+    `);
+    setTimeout(()=>$("f-deposit-custom")?.focus(),300);
+  }
+}
+
+function submitCustomDeposit(){
+  const amount = parseFloat($("f-deposit-custom").value);
+  const note = $("f-deposit-note").value.trim() || 'إيداع مخصص';
+  if(!amount || amount <= 0){toast("⚠️ اكتب المبلغ الصحيح");return;}
+  addDepositItem(amount, note);
+  closeModal();
+}
+
+function addDepositItem(amount, note){
+  if(!S.data.deposits[S.month]) S.data.deposits[S.month] = {total: 0, items: []};
+  S.data.deposits[S.month].total += amount;
+  S.data.deposits[S.month].items.push({amount, note, date: new Date().toISOString()});
+  saveDeposits();
+  draw();
+  toast("✅ تم تسجيل الإيداع");
+}
+
+async function actSendReminder(idx, method){
+  const wd=waData(S.month);
+  if(!wd[idx])return;
+  if(method === 'email'){
+    const person = wd[idx].person;
+    if(!person.email){toast("⚠️ لا يوجد بريد إلكتروني");return;}
+    const emailData = emailText(wd[idx], S.month);
+    showSync(true);
+    try{
+      await doAction("sendReminder",{email:person.email,subject:emailData.subject,body:emailData.body});
+      toast("✅ تم إرسال البريد!");
+    }catch(e){toast("⚠️ خطأ في الإرسال");}
+    showSync(false);
+  }
+}
+
+// Auto-deduct runs synchronously to update state before draw, then syncs to API in background
+function runAutoDeduct(month){
+  let anyDeducted = false;
+  S.data.people.forEach(p=>{
+    if(!p.balance || p.balance <= 0) return;
+    const pid = String(p.id);
+    ensureRecs(month);
+    const subs = S.data.subscriptions.filter(s=>String(s.personId)===pid && s.active && s.type!=='one-time');
+    let deducted = 0;
+    subs.forEach(s=>{
+      const sid = String(s.id);
+      const rec = S.data.monthlyRecords[month][sid];
+      if(rec && !rec.paidByPerson && !rec.autoDeducted && p.balance >= Number(s.amount)){
+        p.balance -= Number(s.amount);
+        rec.paidByPerson = true;
+        rec.autoDeducted = true;
+        deducted += Number(s.amount);
+      }
+    });
+    if(deducted > 0){
+      anyDeducted = true;
+      saveBalanceLog(pid, -deducted, `خصم تلقائي من الرصيد لشهر ${fmtMonth(month)}`);
+      // Sync to API in background (fire and forget)
+      doAction("updatePerson",{id:pid,name:p.name,phone:p.phone,email:p.email,balance:p.balance});
+    }
+  });
+  if(anyDeducted){
+    saveMonthlyRecordsBackup();
+  }
+  return anyDeducted;
 }
 
 // ========== MODALS ==========
@@ -431,17 +651,31 @@ function modalAddPerson(){
   showModal('إضافة شخص جديد',`
     <label class="label">الاسم</label><input id="f-name" class="input" placeholder="مثال: أحمد">
     <label class="label">رقم الهاتف (مع كود البلد)</label><input id="f-phone" class="input" dir="ltr" placeholder="201012345678">
+    <label class="label">البريد الإلكتروني</label><input id="f-email" class="input" type="email" placeholder="example@mail.com">
     <button class="btn" style="margin-top:16px" onclick="actAddPerson()">➕ إضافة</button>
   `);setTimeout(()=>$("f-name")?.focus(),300);
 }
+
 function modalEditPerson(id){
   const p=S.data.people.find(p=>String(p.id)===String(id));if(!p)return;
   showModal('تعديل البيانات',`
     <label class="label">الاسم</label><input id="f-name" class="input" value="${p.name}">
     <label class="label">رقم الهاتف</label><input id="f-phone" class="input" dir="ltr" value="${p.phone||''}">
+    <label class="label">البريد الإلكتروني</label><input id="f-email" class="input" type="email" value="${p.email||''}">
+    <label class="label">الرصيد الحالي</label><div style="padding:12px;background:rgba(139,92,246,.1);border-radius:8px;border:1px solid var(--border2);color:var(--text)">${p.balance||0} جنيه</div>
     <button class="btn" style="margin-top:16px" onclick="actUpdatePerson('${p.id}')">💾 حفظ</button>
   `);
 }
+
+function modalAddBalance(personId){
+  const p=S.data.people.find(p=>String(p.id)===String(personId));if(!p)return;
+  showModal('إضافة رصيد',`
+    <label class="label">المبلغ (جنيه)</label><input id="f-balance-amount" class="input" type="number" dir="ltr" placeholder="0">
+    <label class="label">ملاحظة (اختياري)</label><input id="f-balance-note" class="input" placeholder="">
+    <button class="btn" style="margin-top:16px" onclick="actAddBalance('${p.id}')">➕ إضافة</button>
+  `);setTimeout(()=>$("f-balance-amount")?.focus(),300);
+}
+
 function modalAddSub(personId){
   showModal('إضافة اشتراك',`
     <label class="label">اسم الخدمة</label><input id="f-service" class="input" placeholder="مثال: Netflix">
@@ -451,6 +685,7 @@ function modalAddSub(personId){
     <button class="btn" style="margin-top:16px" onclick="actAddSub('${personId}')">➕ إضافة</button>
   `);setTimeout(()=>$("f-service")?.focus(),300);
 }
+
 function modalEditSub(id){
   const s=S.data.subscriptions.find(s=>String(s.id)===String(id));if(!s)return;
   showModal('تعديل الاشتراك',`
@@ -462,6 +697,7 @@ function modalEditSub(id){
     <button class="btn" style="margin-top:16px" onclick="actUpdateSub('${s.id}')">💾 حفظ</button>
   `);
 }
+
 function modalConfirmDel(type,id,name){
   const extra=type==='person'?'<br><span style="font-size:12px;color:var(--text2)">سيتم حذف كل اشتراكاته</span>':'';
   const action=type==='person'?`actDeletePerson('${id}')`:`actDeleteSub('${id}')`;
@@ -470,6 +706,7 @@ function modalConfirmDel(type,id,name){
     <div style="display:flex;gap:8px"><button class="btn btn-danger" style="flex:1" onclick="${action}">نعم</button><button class="btn btn-gray" style="flex:1" onclick="closeModal()">إلغاء</button></div>
   `);
 }
+
 function modalWaPreview(idx){
   const wd=waData(S.month);if(!wd[idx])return;
   const msg=waText(wd[idx],S.month);
@@ -478,6 +715,7 @@ function modalWaPreview(idx){
     <button class="btn" style="margin-top:12px" onclick="copyWa(${idx})">📋 نسخ</button>
   `);
 }
+
 function copyWa(idx){
   const wd=waData(S.month);if(!wd[idx])return;
   const msg=waText(wd[idx],S.month);
@@ -488,11 +726,74 @@ function copyWa(idx){
   });
 }
 
+function modalEditWaTemplate(){
+  const t = getWaTemplate();
+  showModal('✏️ تعديل صيغة الرسالة (واتساب)',`
+    <div style="color:var(--text3);font-size:12px;margin-bottom:10px;line-height:1.6">المتغيرات المتاحة: <code style="color:var(--cyan)">{name}</code> <code style="color:var(--cyan)">{month}</code> <code style="color:var(--cyan)">{service}</code> <code style="color:var(--cyan)">{amount}</code> <code style="color:var(--cyan)">{day}</code> <code style="color:var(--cyan)">{num}</code> <code style="color:var(--cyan)">{total}</code></div>
+    <label class="label">التحية</label><input id="f-wa-greeting" class="input" value="${t.greeting}">
+    <label class="label">المقدمة</label><input id="f-wa-intro" class="input" value="${t.intro}">
+    <label class="label">صيغة كل اشتراك</label><input id="f-wa-item" class="input" value="${t.itemFormat}">
+    <label class="label">سطر الإجمالي</label><input id="f-wa-total" class="input" value="${t.totalLine}">
+    <label class="label">الخاتمة</label><textarea id="f-wa-closing" class="input" rows="3" style="resize:vertical">${t.closing}</textarea>
+    <button class="btn" style="margin-top:16px" onclick="saveWaTemplateModal()">💾 حفظ</button>
+    <button class="btn btn-gray" style="margin-top:4px" onclick="resetWaTemplate()">🔄 استعادة الافتراضي</button>
+  `);
+}
+
+function saveWaTemplateModal(){
+  const t = {
+    greeting: $('f-wa-greeting').value,
+    intro: $('f-wa-intro').value,
+    itemFormat: $('f-wa-item').value,
+    totalLine: $('f-wa-total').value,
+    closing: $('f-wa-closing').value
+  };
+  saveWaTemplate(t);
+  closeModal(); draw();
+  toast('✅ تم حفظ صيغة الرسالة');
+}
+
+function resetWaTemplate(){
+  saveWaTemplate({...DEFAULT_WA_TEMPLATE});
+  closeModal(); draw();
+  toast('🔄 تم استعادة الصيغة الافتراضية');
+}
+
+function modalEditEmailTemplate(){
+  const t = getEmailTemplate();
+  showModal('✏️ تعديل صيغة البريد الإلكتروني',`
+    <div style="color:var(--text3);font-size:12px;margin-bottom:10px;line-height:1.6">المتغيرات المتاحة: <code style="color:var(--cyan)">{name}</code> <code style="color:var(--cyan)">{month}</code> <code style="color:var(--cyan)">{items}</code> <code style="color:var(--cyan)">{total}</code></div>
+    <label class="label">الموضوع</label><input id="f-email-subject" class="input" value="${t.subject}">
+    <label class="label">النص</label><textarea id="f-email-body" class="input" rows="6" style="resize:vertical">${t.body}</textarea>
+    <button class="btn" style="margin-top:16px" onclick="saveEmailTemplateModal()">💾 حفظ</button>
+    <button class="btn btn-gray" style="margin-top:4px" onclick="resetEmailTemplate()">🔄 استعادة الافتراضي</button>
+  `);
+}
+
+function saveEmailTemplateModal(){
+  const t = {
+    subject: $('f-email-subject').value,
+    body: $('f-email-body').value
+  };
+  saveEmailTemplate(t);
+  closeModal(); draw();
+  toast('✅ تم حفظ صيغة البريد');
+}
+
+function resetEmailTemplate(){
+  saveEmailTemplate({...DEFAULT_EMAIL_TEMPLATE});
+  closeModal(); draw();
+  toast('🔄 تم استعادة الصيغة الافتراضية');
+}
+
 // ========== RENDER ==========
 function draw(){
   const a=$("app");
   if(!S.url){a.innerHTML=drawSetup();return;}
   if(S.loading){a.innerHTML=`<div class="ld"><div class="sp"></div><p style="color:var(--text2);margin-top:14px">جاري التحميل...</p></div>`;return;}
+
+  // Auto-deduct balance for current month (runs before render)
+  runAutoDeduct(S.month);
 
   const m=S.month,st=getStats(m);
   let h='';
@@ -520,19 +821,19 @@ function draw(){
   h+=`<div class="stats">
     <div class="stat" style="background:linear-gradient(135deg,#1e3a5f,#0f2744)"><div class="stat-val">${st.tot}</div><div class="stat-lbl">الإجمالي 💰</div></div>
     <div class="stat" style="background:${st.pend>0?'linear-gradient(135deg,#5f1e1e,#441010)':'linear-gradient(135deg,#1e5f2e,#104418)'}"><div class="stat-val">${st.pend}</div><div class="stat-lbl">${st.pend>0?'لم يُدفع ⏳':'تمام ✅'}</div></div>
-    <div class="stat" style="background:linear-gradient(135deg,#3a1e5f,#221044)"><div class="stat-val">${st.dep}</div><div class="stat-lbl">تم إيداعه 🏧</div></div>
+    <div class="stat" style="background:linear-gradient(135deg,#3a1e5f,#221044)"><div class="stat-val">${st.deps}</div><div class="stat-lbl">تم إيداعه 🏧</div></div>
     <div class="stat" style="background:linear-gradient(135deg,#1e5f5a,#10443f)"><div class="stat-val">${st.chg}</div><div class="stat-lbl">تم خصمه ✂️</div></div>
   </div>`;
 
   h+=`<div class="tabs">`;
-  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"whatsapp",l:"💬 واتساب"}].forEach(t=>{
+  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"reminders",l:"🔔 تذكير"}].forEach(t=>{
     h+=`<button class="tab ${S.view===t.id?'on':''}" onclick="S.view='${t.id}';draw()">${t.l}</button>`;
   });
   h+=`</div><div class="content">`;
 
   if(S.view==="dashboard")h+=drawDash(m);
   else if(S.view==="people")h+=drawPeople();
-  else if(S.view==="whatsapp")h+=drawWA(m);
+  else if(S.view==="reminders")h+=drawReminders(m);
   h+=`</div>`;
 
   a.innerHTML=h;
@@ -541,25 +842,59 @@ function draw(){
 
 function drawDash(m){
   const gs=grouped(m);
-  if(!gs.length)return`<div class="empty"><div class="empty-icon">📭</div><p style="color:var(--text2)">مفيش اشتراكات للشهر ده</p><p style="color:var(--text3);font-size:12px;margin-top:8px">روح "👥 الأشخاص" عشان تضيف</p></div>`;
-  let h='';
+  let h = '';
+
+  // Deposit section
+  h += `<div class="deposit-section">
+    <h4>🏧 إدارة الإيداعات</h4>
+    <div style="display:flex;gap:6px">
+      <button class="btn" style="flex:1;margin:0;padding:10px" onclick="actAddDeposit('total')">إيداع المدفوع</button>
+      <button class="btn btn-gray" style="flex:1;margin:0;padding:10px" onclick="actAddDeposit('custom')">مخصص</button>
+    </div>
+  </div>`;
+
+  if(!gs.length){
+    h+=`<div class="empty"><div class="empty-icon">📭</div><p style="color:var(--text2)">مفيش اشتراكات للشهر ده</p><p style="color:var(--text3);font-size:12px;margin-top:8px">روح "👥 الأشخاص" عشان تضيف</p></div>`;
+    return h;
+  }
+
   gs.forEach(g=>{
     const avBg=g.allPaid?'linear-gradient(135deg,#10b981,#059669)':'linear-gradient(135deg,#f59e0b,#d97706)';
     h+=`<div class="card"><div class="grp-header">
       <div style="display:flex;align-items:center;gap:10px"><div class="av" style="background:${avBg}">${g.person.name.charAt(0)}</div>
       <div><div style="font-weight:600;font-size:16px">${g.person.name}</div><div style="color:var(--text3);font-size:13px;direction:ltr;text-align:right">${g.person.phone||''}</div></div></div>
-      <div class="badge" style="background:${g.allPaid?'#065f46':'#78350f'}">${g.total} ج</div>
+      <div><div class="badge" style="background:${g.allPaid?'#065f46':'#78350f'}">${g.total} ج</div>${g.person.balance ? `<div class="balance-badge">💰 ${g.person.balance}</div>` : ''}</div>
     </div>`;
     g.subs.forEach(s=>{
       h+=`<div class="grp-row"><div style="flex:1;min-width:0"><div class="svc-name">${s.service}</div><div class="svc-detail">${s.amount} ج — يوم ${s.dueDay}</div></div>
       <div class="s-btns">
         <button class="s-btn ${s.status.paidByPerson?'paid':''}" onclick="actToggle('${m}','${s.id}','paidByPerson')">${s.status.paidByPerson?'💵 دفع':'⏳'}</button>
-        <button class="s-btn ${s.status.deposited?'dep':''}" onclick="actToggle('${m}','${s.id}','deposited')">${s.status.deposited?'🏧 مودع':'🏧'}</button>
         <button class="s-btn ${s.status.charged?'chg':''}" onclick="actToggle('${m}','${s.id}','charged')">${s.status.charged?'✅ خُصم':'✂️'}</button>
       </div></div>`;
     });
     h+=`</div>`;
   });
+
+  // Deposit log
+  if(S.data.deposits[m] && S.data.deposits[m].items.length > 0){
+    const deps = S.data.deposits[m];
+    h += `<div class="card">
+      <div class="expandable">
+        <div class="expandable-header" onclick="this.parentElement.querySelector('.expandable-content').classList.toggle('open')">
+          <div>📋 سجل الإيداعات (${deps.items.length})</div>
+          <div style="font-size:12px;color:var(--primary)">▼</div>
+        </div>
+        <div class="expandable-content">`;
+    deps.items.forEach(item=>{
+      const date = new Date(item.date).toLocaleDateString('ar-EG');
+      h += `<div style="padding:8px 16px;border-bottom:1px solid #0d1220;display:flex;justify-content:space-between">
+        <div><div style="color:var(--text)">${item.note}</div><div style="color:var(--text3);font-size:11px">${date}</div></div>
+        <div style="color:var(--primary);font-weight:600">${item.amount}</div>
+      </div>`;
+    });
+    h += `</div></div></div>`;
+  }
+
   return h;
 }
 
@@ -570,8 +905,9 @@ function drawPeople(){
     const pid=String(p.id),subs=S.data.subscriptions.filter(s=>String(s.personId)===pid);
     h+=`<div class="card"><div class="grp-header">
       <div style="display:flex;align-items:center;gap:10px"><div class="av" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">${p.name.charAt(0)}</div>
-      <div><div style="font-weight:600;font-size:16px">${p.name}</div><div style="color:var(--text3);font-size:13px">${p.phone||''} — ${subs.length} اشتراك</div></div></div>
+      <div><div style="font-weight:600;font-size:16px">${p.name}</div><div style="color:var(--text3);font-size:13px">${p.phone||''} — ${subs.length} اشتراك</div>${p.balance ? `<div class="balance-badge">💰 ${p.balance} جنيه</div>` : ''}</div></div>
       <div style="display:flex;gap:6px">
+        <button class="btn-icon" onclick="modalAddBalance('${pid}')" title="إضافة رصيد">💰</button>
         <button class="btn-icon" onclick="modalEditPerson('${pid}')">✏️</button>
         <button class="btn-icon" onclick="modalConfirmDel('person','${pid}','${esc(p.name)}')">🗑️</button>
       </div>
@@ -597,52 +933,20 @@ function openWhatsApp(idx){
   const msg=waText(wd[idx],S.month);
   const phone=(wd[idx].person.phone||'').replace(/[^0-9]/g,'');
   const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-  // Use window.open for better PWA compatibility
   const w = window.open(waUrl,'_blank');
   if(!w){
-    // Fallback: direct navigation
     window.location.href = waUrl;
   }
 }
 
-function modalEditTemplate(){
-  const t = getWaTemplate();
-  showModal('✏️ تعديل صيغة الرسالة',`
-    <div style="color:var(--text3);font-size:12px;margin-bottom:10px;line-height:1.6">المتغيرات المتاحة: <code style="color:var(--cyan)">{name}</code> الاسم، <code style="color:var(--cyan)">{month}</code> الشهر، <code style="color:var(--cyan)">{service}</code> الخدمة، <code style="color:var(--cyan)">{amount}</code> المبلغ، <code style="color:var(--cyan)">{day}</code> يوم الخصم، <code style="color:var(--cyan)">{num}</code> الترتيب، <code style="color:var(--cyan)">{total}</code> الإجمالي</div>
-    <label class="label">التحية</label><input id="f-wa-greeting" class="input" value="${t.greeting}">
-    <label class="label">المقدمة</label><input id="f-wa-intro" class="input" value="${t.intro}">
-    <label class="label">صيغة كل اشتراك</label><input id="f-wa-item" class="input" value="${t.itemFormat}">
-    <label class="label">سطر الإجمالي</label><input id="f-wa-total" class="input" value="${t.totalLine}">
-    <label class="label">الخاتمة</label><textarea id="f-wa-closing" class="input" rows="3" style="resize:vertical">${t.closing}</textarea>
-    <button class="btn" style="margin-top:16px" onclick="saveTemplate()">💾 حفظ الصيغة</button>
-    <button class="btn btn-gray" style="margin-top:4px" onclick="resetTemplate()">🔄 استعادة الافتراضي</button>
-  `);
-}
-
-function saveTemplate(){
-  const t = {
-    greeting: $('f-wa-greeting').value,
-    intro: $('f-wa-intro').value,
-    itemFormat: $('f-wa-item').value,
-    totalLine: $('f-wa-total').value,
-    closing: $('f-wa-closing').value
-  };
-  saveWaTemplate(t);
-  closeModal(); draw();
-  toast('✅ تم حفظ صيغة الرسالة');
-}
-
-function resetTemplate(){
-  saveWaTemplate({...DEFAULT_WA_TEMPLATE});
-  closeModal(); draw();
-  toast('🔄 تم استعادة الصيغة الافتراضية');
-}
-
-function drawWA(m){
+function drawReminders(m){
   const wd=waData(m);
   let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div style="font-size:15px;color:var(--text2)">رسائل تذكير لشهر <strong style="color:var(--text)">${fmtMonth(m)}</strong></div>
-    <button class="btn-icon" onclick="modalEditTemplate()" title="تعديل صيغة الرسالة">✏️</button>
+    <div style="font-size:15px;color:var(--text2)">تذكيرات لشهر <strong style="color:var(--text)">${fmtMonth(m)}</strong></div>
+    <div style="display:flex;gap:4px">
+      <button class="btn-icon" onclick="modalEditWaTemplate()" title="تعديل صيغة الواتساب">📱</button>
+      <button class="btn-icon" onclick="modalEditEmailTemplate()" title="تعديل صيغة البريد">✉️</button>
+    </div>
   </div>`;
   if(!wd.length)return h+`<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2);font-size:15px">الكل دفع!</p></div>`;
   wd.forEach((pd,idx)=>{
@@ -650,7 +954,11 @@ function drawWA(m){
     h+=`<div class="card"><div class="grp-header" style="flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px"><div class="av sm" style="background:linear-gradient(135deg,#22c55e,#16a34a)">${pd.person.name.charAt(0)}</div>
       <div><div style="font-weight:600;font-size:16px">${pd.person.name}</div><div style="color:var(--text3);font-size:13px">${pd.total} ج — ${pd.items.length} اشتراك</div></div></div>
-      <div class="wa-btns"><button class="wa-copy" onclick="copyWa(${idx})">📋 نسخ</button><button class="wa-open" onclick="openWhatsApp(${idx})">💬 واتساب</button></div>
+      <div class="wa-btns">
+        <button class="wa-copy" onclick="copyWa(${idx})">📋 نسخ</button>
+        <button class="wa-open" onclick="openWhatsApp(${idx})">💬 واتساب</button>
+        ${pd.person.email ? `<button class="wa-copy" onclick="actSendReminder(${idx}, 'email')" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff">✉️ بريد</button>` : ''}
+      </div>
     </div><div class="wa-prev" onclick="modalWaPreview(${idx})">${preview}</div></div>`;
   });
   return h;
