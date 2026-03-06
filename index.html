@@ -34,7 +34,7 @@ body{
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
-input,select,button{font-family:inherit;-webkit-appearance:none}
+input,select,button,textarea{font-family:inherit;-webkit-appearance:none}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 .app{max-width:480px;margin:0 auto;padding-bottom:80px;position:relative}
@@ -49,6 +49,7 @@ input,select,button{font-family:inherit;-webkit-appearance:none}
 .btn:disabled{opacity:.5}
 .btn-danger{background:linear-gradient(135deg,#dc2626,#b91c1c)}
 .btn-gray{background:var(--border2)}
+.btn-green{background:linear-gradient(135deg,#059669,#10b981)}
 .btn-icon{background:rgba(30,41,59,.6);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:18px;cursor:pointer;width:auto;margin:0;-webkit-tap-highlight-color:transparent}
 .label{display:block;color:var(--text2);font-size:14px;font-weight:500;margin:12px 0 6px}
 .input{width:100%;padding:14px 14px;border-radius:10px;border:1px solid var(--border2);background:#0d1220;color:var(--text);font-size:16px;outline:none}
@@ -97,12 +98,14 @@ input,select,button{font-family:inherit;-webkit-appearance:none}
 
 .add-sub-row{width:100%;padding:10px;background:transparent;border:1px dashed var(--border2);border-top:none;color:var(--primary);font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
 
-.wa-btns{display:flex;gap:6px}
-.wa-copy{padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--border);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.wa-open{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
-.wa-prev{padding:12px 16px;color:var(--text2);font-size:14px;line-height:1.7;white-space:pre-wrap;cursor:pointer}
+.email-btns{display:flex;gap:6px}
+.email-send{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.email-send:disabled{opacity:.5}
+.email-copy{padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--border);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.email-prev{padding:12px 16px;color:var(--text2);font-size:14px;line-height:1.7;white-space:pre-wrap;cursor:pointer}
 
 .balance-badge{display:inline-block;background:linear-gradient(135deg,#8b5cf6,#a78bfa);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-top:4px}
+.payment-day-badge{display:inline-block;background:linear-gradient(135deg,#0891b2,#06b6d4);color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-top:4px;margin-right:4px}
 
 .deposit-section{background:rgba(99,102,241,.1);border:1px solid var(--primary);border-radius:14px;padding:14px 16px;margin-bottom:14px}
 .deposit-section h4{color:var(--text);font-size:14px;font-weight:600;margin-bottom:8px}
@@ -111,6 +114,9 @@ input,select,button{font-family:inherit;-webkit-appearance:none}
 .expandable-header{padding:12px 16px;background:rgba(30,41,59,.3);border-radius:10px;display:flex;justify-content:space-between;align-items:center}
 .expandable-content{display:none;padding:12px 16px;border-top:1px solid var(--border2)}
 .expandable-content.open{display:block}
+
+.settings-section{background:rgba(99,102,241,.05);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-top:16px}
+.settings-section h4{color:var(--text);font-size:14px;font-weight:600;margin-bottom:10px}
 
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:1000;animation:fadeIn .15s}
 .mdl{background:var(--card);border-radius:20px 20px 0 0;padding:20px;padding-bottom:max(20px, env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:85vh;max-height:85dvh;overflow-y:auto;animation:slideUp .25s;border:1px solid var(--border)}
@@ -148,7 +154,6 @@ input,select,button{font-family:inherit;-webkit-appearance:none}
 
 <script>
 // ========== PWA SETUP ==========
-// Generate manifest dynamically
 const manifestData = {
   name: "إدارة الاشتراكات",
   short_name: "اشتراكاتي",
@@ -166,12 +171,10 @@ const manifestData = {
   ]
 };
 
-// Create manifest blob and link
 const manifestBlob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
 const manifestURL = URL.createObjectURL(manifestBlob);
 document.querySelector('link[rel="manifest"]').href = manifestURL;
 
-// Generate apple touch icon
 try {
   const canvas = document.createElement('canvas');
   canvas.width = 180; canvas.height = 180;
@@ -187,11 +190,9 @@ try {
   document.getElementById('apple-icon').href = canvas.toDataURL('image/png');
 } catch(e) {}
 
-// Register service worker for offline + installability
 if ('serviceWorker' in navigator) {
-  // Create a minimal service worker inline
   const swCode = `
-    const CACHE = 'sub-mgr-v2';
+    const CACHE = 'sub-mgr-v3';
     self.addEventListener('install', e => {
       e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])).catch(()=>{}));
       self.skipWaiting();
@@ -210,7 +211,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register(swURL).catch(()=>{});
 }
 
-// Install prompt
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
@@ -239,7 +239,7 @@ const $ = id => document.getElementById(id);
 
 let S = {
   url: localStorage.getItem("sm-url") || "",
-  data: { people: [], subscriptions: [], monthlyRecords: {}, deposits: {} },
+  data: { people: [], subscriptions: [], monthlyRecords: {}, deposits: {}, settings: {} },
   loading: false,
   view: "dashboard",
   month: curMonth()
@@ -255,9 +255,44 @@ function nextMonths(c=4){
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),2500); }
 function showSync(v){ $("sync").classList.toggle("on",v); }
 
-// Boolean parsing helper
 function parseBool(v) {
   return v === true || v === 'true' || v === 'TRUE';
+}
+
+// ========== EMAIL TEMPLATE ==========
+const DEFAULT_EMAIL_TEMPLATE = {
+  subject: 'تذكير بسداد الاشتراكات — شهر {month}',
+  greeting: 'السلام عليكم {name}،',
+  intro: 'نود تذكيركم بأن موعد سداد الاشتراكات المستحقة لشهر {month} يحين قريبًا. فيما يلي تفاصيل الاشتراكات المطلوب سدادها:',
+  lateIntro: 'نود تذكيركم بأن موعد سداد الاشتراكات المستحقة لشهر {month} قد مرّ ولا تزال الاشتراكات التالية غير مسددة:',
+  itemFormat: '• {service} — {amount} جنيه',
+  totalLine: 'إجمالي المبلغ المستحق: {total} جنيه',
+  closing: 'نرجو التكرم بسداد المبلغ في أقرب وقت ممكن حتى نتمكن من إيداعه في البطاقة قبل موعد الخصم.\n\nمع خالص التحية،\nإدارة الاشتراكات'
+};
+
+function getEmailTemplate(){
+  try{ return JSON.parse(localStorage.getItem('sm-email-template')) || {...DEFAULT_EMAIL_TEMPLATE}; }
+  catch(e){ return {...DEFAULT_EMAIL_TEMPLATE}; }
+}
+function saveEmailTemplate(t){ localStorage.setItem('sm-email-template', JSON.stringify(t)); }
+
+function emailText(pd, month, isLate){
+  const t = getEmailTemplate();
+  let m = t.greeting.replace('{name}', pd.person.name) + '\n\n';
+  m += (isLate ? t.lateIntro : t.intro).replace('{month}', fmtMonth(month)) + '\n\n';
+  pd.items.forEach(s => {
+    m += t.itemFormat.replace('{service}', s.service).replace('{amount}', s.amount) + '\n';
+  });
+  m += '\n' + t.totalLine.replace('{total}', pd.total) + '\n\n';
+  m += t.closing;
+  return m;
+}
+
+function emailSubject(month, isLate){
+  const t = getEmailTemplate();
+  let subj = t.subject.replace('{month}', fmtMonth(month));
+  if(isLate) subj = subj.replace('تذكير', 'تذكير متأخر');
+  return subj;
 }
 
 // ========== API ==========
@@ -278,14 +313,17 @@ async function loadData(){
       S.data={
         people:(res.data.people||[]).map(p=>({
           ...p,
-          balance: p.balance || 0
+          balance: p.balance || 0,
+          email: p.email || '',
+          paymentDay: p.paymentDay || 1
         })),
         subscriptions:res.data.subscriptions||[],
         monthlyRecords:res.data.monthlyRecords||{},
-        deposits:res.data.deposits||{}
+        deposits:res.data.deposits||{},
+        settings:res.data.settings||{}
       };
 
-      // Parse boolean values in monthlyRecords to handle API string booleans
+      // Parse boolean values
       Object.keys(S.data.monthlyRecords).forEach(month=>{
         Object.keys(S.data.monthlyRecords[month]).forEach(subId=>{
           const rec = S.data.monthlyRecords[month][subId];
@@ -297,7 +335,7 @@ async function loadData(){
         });
       });
 
-      // Load localStorage backup for monthlyRecords as fallback
+      // Load localStorage backup for monthlyRecords
       try{
         const lsBackup = JSON.parse(localStorage.getItem('sm-monthly-backup'))||{};
         Object.keys(lsBackup).forEach(month=>{
@@ -315,6 +353,19 @@ async function loadData(){
         const lsDeposits = JSON.parse(localStorage.getItem('sm-deposits'))||{};
         Object.assign(S.data.deposits, lsDeposits);
       }catch(e){}
+
+      // Sync email template from backend settings if available
+      if(S.data.settings.emailTemplate){
+        try{
+          const serverTemplate = JSON.parse(S.data.settings.emailTemplate);
+          saveEmailTemplate(serverTemplate);
+        }catch(e){}
+      }
+
+      // Sync settings locally
+      if(S.data.settings.depositReminderDay){
+        localStorage.setItem('sm-deposit-day', S.data.settings.depositReminderDay);
+      }
 
       if(!S.data.people.length) S.view="people";
     }
@@ -373,7 +424,7 @@ function grouped(month){
   return Object.values(gs);
 }
 
-function waData(month){
+function emailData(month){
   const by={};
   monthSubs(month).forEach(s=>{
     if(!s.person||s.status.paidByPerson)return;
@@ -382,34 +433,6 @@ function waData(month){
     by[pid].items.push(s);by[pid].total+=Number(s.amount);
   });
   return Object.values(by);
-}
-
-// Default WhatsApp message template
-const DEFAULT_WA_TEMPLATE = {
-  greeting: 'السلام عليكم يا {name} 😊',
-  intro: 'ده تذكير بالاشتراكات بتاعتك لشهر {month}:',
-  itemFormat: '{num}. {service} — {amount} جنيه (يوم {day} من الشهر)',
-  totalLine: '💰 الإجمالي: {total} جنيه',
-  closing: 'ياريت تحوّلي المبلغ في أقرب وقت عشان أقدر أودعه في البطاقة قبل الخصم. جزاك الله خيرًا 🤲'
-};
-
-
-function getWaTemplate(){
-  try{ return JSON.parse(localStorage.getItem('sm-wa-template')) || {...DEFAULT_WA_TEMPLATE}; }
-  catch(e){ return {...DEFAULT_WA_TEMPLATE}; }
-}
-function saveWaTemplate(t){ localStorage.setItem('sm-wa-template', JSON.stringify(t)); }
-
-function waText(pd,month){
-  const t = getWaTemplate();
-  let m = t.greeting.replace('{name}', pd.person.name) + '\n';
-  m += t.intro.replace('{month}', fmtMonth(month)) + '\n\n';
-  pd.items.forEach((s,i)=>{
-    m += t.itemFormat.replace('{num}', i+1).replace('{service}', s.service).replace('{amount}', s.amount).replace('{day}', s.dueDay) + '\n';
-  });
-  m += '\n' + t.totalLine.replace('{total}', pd.total) + '\n\n';
-  m += t.closing;
-  return m;
 }
 
 function esc(s){return String(s).replace(/'/g,"\\'");}
@@ -436,22 +459,30 @@ function saveDeposits() {
 
 // ========== ACTIONS ==========
 async function actAddPerson(){
-  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
+  const name=$("f-name").value.trim();
+  const phone=$("f-phone").value.trim();
+  const email=$("f-email").value.trim();
+  const paymentDay=parseInt($("f-paymentday").value)||1;
   if(!name){toast("⚠️ اكتب الاسم");return;}
+  if(!email){toast("⚠️ اكتب الإيميل");return;}
   const id=String(Date.now());
-  S.data.people.push({id,name,phone,balance:0});
+  S.data.people.push({id,name,phone,email,paymentDay,balance:0});
   closeModal();draw();
-  await doAction("addPerson",{id,name,phone,balance:0});
+  await doAction("addPerson",{id,name,phone,email,paymentDay,balance:0});
   toast("✅ تم إضافة "+name);
 }
 
 async function actUpdatePerson(id){
-  const name=$("f-name").value.trim(),phone=$("f-phone").value.trim();
+  const name=$("f-name").value.trim();
+  const phone=$("f-phone").value.trim();
+  const email=$("f-email").value.trim();
+  const paymentDay=parseInt($("f-paymentday").value)||1;
   if(!name)return;
+  if(!email){toast("⚠️ اكتب الإيميل");return;}
   const p=S.data.people.find(p=>String(p.id)===String(id));
-  if(p){p.name=name;p.phone=phone;}
+  if(p){p.name=name;p.phone=phone;p.email=email;p.paymentDay=paymentDay;}
   closeModal();draw();
-  await doAction("updatePerson",{id,name,phone,balance:p?.balance||0});
+  await doAction("updatePerson",{id,name,phone,email,paymentDay,balance:p?.balance||0});
   toast("✅ تم التحديث");
 }
 
@@ -515,7 +546,7 @@ async function actAddBalance(personId){
   p.balance = (p.balance || 0) + amount;
   saveBalanceLog(personId, amount, note);
   closeModal();draw();
-  await doAction("updatePerson",{id:personId,name:p.name,phone:p.phone,balance:p.balance});
+  await doAction("updatePerson",{id:personId,name:p.name,phone:p.phone,email:p.email,paymentDay:p.paymentDay,balance:p.balance});
   toast("✅ تم إضافة رصيد");
 }
 
@@ -563,7 +594,7 @@ function deleteDepositItem(month, idx){
   toast("🗑️ تم حذف الإيداع");
 }
 
-// Auto-deduct runs synchronously to update state before draw, then syncs to API in background
+// Auto-deduct
 function runAutoDeduct(month){
   let anyDeducted = false;
   S.data.people.forEach(p=>{
@@ -585,14 +616,76 @@ function runAutoDeduct(month){
     if(deducted > 0){
       anyDeducted = true;
       saveBalanceLog(pid, -deducted, `خصم تلقائي من الرصيد لشهر ${fmtMonth(month)}`);
-      // Sync to API in background (fire and forget)
-      doAction("updatePerson",{id:pid,name:p.name,phone:p.phone,balance:p.balance});
+      doAction("updatePerson",{id:pid,name:p.name,phone:p.phone,email:p.email,paymentDay:p.paymentDay,balance:p.balance});
     }
   });
   if(anyDeducted){
     saveMonthlyRecordsBackup();
   }
   return anyDeducted;
+}
+
+// ========== EMAIL ACTIONS ==========
+async function sendReminderEmail(personId, month, isLate){
+  const ed = emailData(month);
+  const pd = ed.find(d => String(d.person.id) === String(personId));
+  if(!pd){toast("✅ لا توجد اشتراكات مستحقة");return;}
+  if(!pd.person.email){toast("⚠️ لا يوجد إيميل مسجل");return;}
+
+  const t = getEmailTemplate();
+  const subject = emailSubject(month, isLate);
+  const body = emailText(pd, month, isLate);
+
+  toast("📧 جاري الإرسال...");
+  try{
+    const res = await apiPost(S.url, "sendEmail", {
+      to: pd.person.email,
+      subject: subject,
+      body: body,
+      personName: pd.person.name
+    });
+    if(res.success){
+      toast("✅ تم إرسال التذكير إلى " + pd.person.name);
+    } else {
+      toast("⚠️ خطأ: " + (res.error || "فشل الإرسال"));
+    }
+  }catch(e){
+    toast("⚠️ خطأ في الإرسال");
+    console.error(e);
+  }
+}
+
+async function sendAllReminders(month){
+  const ed = emailData(month);
+  if(!ed.length){toast("✅ الكل دفع!");return;}
+  let sent = 0, failed = 0;
+  for(const pd of ed){
+    if(!pd.person.email){failed++;continue;}
+    try{
+      const subject = emailSubject(month, false);
+      const body = emailText(pd, month, false);
+      const res = await apiPost(S.url, "sendEmail", {
+        to: pd.person.email,
+        subject: subject,
+        body: body,
+        personName: pd.person.name
+      });
+      if(res.success) sent++; else failed++;
+    }catch(e){failed++;}
+  }
+  toast(`📧 تم إرسال ${sent} تذكير` + (failed ? ` (${failed} فشل)` : ''));
+}
+
+async function saveSettingsToBackend(){
+  const t = getEmailTemplate();
+  const depositDay = localStorage.getItem('sm-deposit-day') || '25';
+  try{
+    await apiPost(S.url, "updateSettings", {
+      emailTemplate: JSON.stringify(t),
+      depositReminderDay: depositDay,
+      adminEmail: 'abdo.1990.1411@gmail.com'
+    });
+  }catch(e){console.error(e);}
 }
 
 // ========== MODALS ==========
@@ -609,7 +702,9 @@ function showModal(title,bodyHTML){
 function modalAddPerson(){
   showModal('إضافة شخص جديد',`
     <label class="label">الاسم</label><input id="f-name" class="input" placeholder="مثال: أحمد">
-    <label class="label">رقم الهاتف (مع كود البلد)</label><input id="f-phone" class="input" dir="ltr" placeholder="201012345678">
+    <label class="label">البريد الإلكتروني</label><input id="f-email" class="input" dir="ltr" type="email" placeholder="example@gmail.com">
+    <label class="label">رقم الهاتف (اختياري)</label><input id="f-phone" class="input" dir="ltr" placeholder="201012345678">
+    <label class="label">يوم الدفع (من كل شهر)</label><input id="f-paymentday" class="input" type="number" dir="ltr" value="1" min="1" max="28">
     <button class="btn" style="margin-top:16px" onclick="actAddPerson()">➕ إضافة</button>
   `);setTimeout(()=>$("f-name")?.focus(),300);
 }
@@ -618,7 +713,9 @@ function modalEditPerson(id){
   const p=S.data.people.find(p=>String(p.id)===String(id));if(!p)return;
   showModal('تعديل البيانات',`
     <label class="label">الاسم</label><input id="f-name" class="input" value="${p.name}">
-    <label class="label">رقم الهاتف</label><input id="f-phone" class="input" dir="ltr" value="${p.phone||''}">
+    <label class="label">البريد الإلكتروني</label><input id="f-email" class="input" dir="ltr" type="email" value="${p.email||''}">
+    <label class="label">رقم الهاتف (اختياري)</label><input id="f-phone" class="input" dir="ltr" value="${p.phone||''}">
+    <label class="label">يوم الدفع (من كل شهر)</label><input id="f-paymentday" class="input" type="number" dir="ltr" value="${p.paymentDay||1}" min="1" max="28">
     <label class="label">الرصيد الحالي</label><div style="padding:12px;background:rgba(139,92,246,.1);border-radius:8px;border:1px solid var(--border2);color:var(--text)">${p.balance||0} جنيه</div>
     <button class="btn" style="margin-top:16px" onclick="actUpdatePerson('${p.id}')">💾 حفظ</button>
   `);
@@ -637,7 +734,7 @@ function modalAddSub(personId){
   showModal('إضافة اشتراك',`
     <label class="label">اسم الخدمة</label><input id="f-service" class="input" placeholder="مثال: Netflix">
     <label class="label">المبلغ (جنيه)</label><input id="f-amount" class="input" type="number" dir="ltr" placeholder="250">
-    <label class="label">يوم الخصم</label><input id="f-day" class="input" type="number" dir="ltr" value="1" min="1" max="28">
+    <label class="label">يوم التجديد (يوم الخصم من البطاقة)</label><input id="f-day" class="input" type="number" dir="ltr" value="1" min="1" max="28">
     <label class="label">نوع الاشتراك</label><select id="f-type" class="input"><option value="monthly">شهري 🔄</option><option value="one-time">مرة واحدة</option></select>
     <button class="btn" style="margin-top:16px" onclick="actAddSub('${personId}')">➕ إضافة</button>
   `);setTimeout(()=>$("f-service")?.focus(),300);
@@ -648,7 +745,7 @@ function modalEditSub(id){
   showModal('تعديل الاشتراك',`
     <label class="label">اسم الخدمة</label><input id="f-service" class="input" value="${s.service}">
     <label class="label">المبلغ</label><input id="f-amount" class="input" type="number" dir="ltr" value="${s.amount}">
-    <label class="label">يوم الخصم</label><input id="f-day" class="input" type="number" dir="ltr" value="${s.dueDay}">
+    <label class="label">يوم التجديد (يوم الخصم من البطاقة)</label><input id="f-day" class="input" type="number" dir="ltr" value="${s.dueDay}">
     <label class="label">النوع</label><select id="f-type" class="input"><option value="monthly" ${s.type==='monthly'?'selected':''}>شهري 🔄</option><option value="one-time" ${s.type==='one-time'?'selected':''}>مرة واحدة</option></select>
     <label class="label">الحالة</label><select id="f-active" class="input"><option value="true" ${s.active?'selected':''}>نشط ✅</option><option value="false" ${!s.active?'selected':''}>متوقف ⛔</option></select>
     <button class="btn" style="margin-top:16px" onclick="actUpdateSub('${s.id}')">💾 حفظ</button>
@@ -664,18 +761,21 @@ function modalConfirmDel(type,id,name){
   `);
 }
 
-function modalWaPreview(idx){
-  const wd=waData(S.month);if(!wd[idx])return;
-  const msg=waText(wd[idx],S.month);
-  showModal('الرسالة كاملة',`
-    <div style="white-space:pre-wrap;color:var(--text);font-size:14px;line-height:1.8;background:#0d1b2a;padding:14px;border-radius:12px">${msg}</div>
-    <button class="btn" style="margin-top:12px" onclick="copyWa(${idx})">📋 نسخ</button>
+function modalEmailPreview(idx){
+  const ed=emailData(S.month);if(!ed[idx])return;
+  const msg=emailText(ed[idx],S.month,false);
+  const subj=emailSubject(S.month,false);
+  showModal('معاينة الإيميل',`
+    <div style="margin-bottom:8px"><span style="color:var(--text3);font-size:12px">الموضوع:</span> <span style="color:var(--text);font-size:14px;font-weight:600">${subj}</span></div>
+    <div style="margin-bottom:8px"><span style="color:var(--text3);font-size:12px">إلى:</span> <span style="color:var(--cyan);font-size:14px" dir="ltr">${ed[idx].person.email||'لا يوجد إيميل'}</span></div>
+    <div style="white-space:pre-wrap;color:var(--text);font-size:14px;line-height:1.8;background:#0d1b2a;padding:14px;border-radius:12px;margin-top:8px">${msg}</div>
+    <button class="btn" style="margin-top:12px" onclick="copyEmail(${idx})">📋 نسخ</button>
   `);
 }
 
-function copyWa(idx){
-  const wd=waData(S.month);if(!wd[idx])return;
-  const msg=waText(wd[idx],S.month);
+function copyEmail(idx){
+  const ed=emailData(S.month);if(!ed[idx])return;
+  const msg=emailText(ed[idx],S.month,false);
   navigator.clipboard.writeText(msg).then(()=>toast("📋 تم النسخ!")).catch(()=>{
     const ta=document.createElement('textarea');ta.value=msg;ta.style.position='fixed';ta.style.left='-9999px';
     document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
@@ -683,37 +783,62 @@ function copyWa(idx){
   });
 }
 
-function modalEditWaTemplate(){
-  const t = getWaTemplate();
-  showModal('✏️ تعديل صيغة الرسالة (واتساب)',`
-    <div style="color:var(--text3);font-size:12px;margin-bottom:10px;line-height:1.6">المتغيرات المتاحة: <code style="color:var(--cyan)">{name}</code> <code style="color:var(--cyan)">{month}</code> <code style="color:var(--cyan)">{service}</code> <code style="color:var(--cyan)">{amount}</code> <code style="color:var(--cyan)">{day}</code> <code style="color:var(--cyan)">{num}</code> <code style="color:var(--cyan)">{total}</code></div>
-    <label class="label">التحية</label><input id="f-wa-greeting" class="input" value="${t.greeting}">
-    <label class="label">المقدمة</label><input id="f-wa-intro" class="input" value="${t.intro}">
-    <label class="label">صيغة كل اشتراك</label><input id="f-wa-item" class="input" value="${t.itemFormat}">
-    <label class="label">سطر الإجمالي</label><input id="f-wa-total" class="input" value="${t.totalLine}">
-    <label class="label">الخاتمة</label><textarea id="f-wa-closing" class="input" rows="3" style="resize:vertical">${t.closing}</textarea>
-    <button class="btn" style="margin-top:16px" onclick="saveWaTemplateModal()">💾 حفظ</button>
-    <button class="btn btn-gray" style="margin-top:4px" onclick="resetWaTemplate()">🔄 استعادة الافتراضي</button>
+function modalEditEmailTemplate(){
+  const t = getEmailTemplate();
+  showModal('✏️ تعديل صيغة الإيميل',`
+    <div style="color:var(--text3);font-size:12px;margin-bottom:10px;line-height:1.6">المتغيرات المتاحة: <code style="color:var(--cyan)">{name}</code> <code style="color:var(--cyan)">{month}</code> <code style="color:var(--cyan)">{service}</code> <code style="color:var(--cyan)">{amount}</code> <code style="color:var(--cyan)">{total}</code></div>
+    <label class="label">عنوان الإيميل (Subject)</label><input id="f-em-subject" class="input" value="${t.subject}">
+    <label class="label">التحية</label><input id="f-em-greeting" class="input" value="${t.greeting}">
+    <label class="label">المقدمة (تذكير مسبق)</label><textarea id="f-em-intro" class="input" rows="2" style="resize:vertical">${t.intro}</textarea>
+    <label class="label">المقدمة (تذكير متأخر)</label><textarea id="f-em-late" class="input" rows="2" style="resize:vertical">${t.lateIntro}</textarea>
+    <label class="label">صيغة كل اشتراك</label><input id="f-em-item" class="input" value="${t.itemFormat}">
+    <label class="label">سطر الإجمالي</label><input id="f-em-total" class="input" value="${t.totalLine}">
+    <label class="label">الخاتمة</label><textarea id="f-em-closing" class="input" rows="3" style="resize:vertical">${t.closing}</textarea>
+    <button class="btn" style="margin-top:16px" onclick="saveEmailTemplateModal()">💾 حفظ</button>
+    <button class="btn btn-gray" style="margin-top:4px" onclick="resetEmailTemplate()">🔄 استعادة الافتراضي</button>
   `);
 }
 
-function saveWaTemplateModal(){
+function saveEmailTemplateModal(){
   const t = {
-    greeting: $('f-wa-greeting').value,
-    intro: $('f-wa-intro').value,
-    itemFormat: $('f-wa-item').value,
-    totalLine: $('f-wa-total').value,
-    closing: $('f-wa-closing').value
+    subject: $('f-em-subject').value,
+    greeting: $('f-em-greeting').value,
+    intro: $('f-em-intro').value,
+    lateIntro: $('f-em-late').value,
+    itemFormat: $('f-em-item').value,
+    totalLine: $('f-em-total').value,
+    closing: $('f-em-closing').value
   };
-  saveWaTemplate(t);
+  saveEmailTemplate(t);
   closeModal(); draw();
-  toast('✅ تم حفظ صيغة الرسالة');
+  saveSettingsToBackend();
+  toast('✅ تم حفظ صيغة الإيميل');
 }
 
-function resetWaTemplate(){
-  saveWaTemplate({...DEFAULT_WA_TEMPLATE});
+function resetEmailTemplate(){
+  saveEmailTemplate({...DEFAULT_EMAIL_TEMPLATE});
   closeModal(); draw();
+  saveSettingsToBackend();
   toast('🔄 تم استعادة الصيغة الافتراضية');
+}
+
+function modalDepositSettings(){
+  const currentDay = localStorage.getItem('sm-deposit-day') || '25';
+  showModal('⚙️ إعدادات تذكير الإيداع',`
+    <div style="color:var(--text2);font-size:13px;margin-bottom:12px;line-height:1.6">سيتم إرسال تذكير بالإيداع إلى إيميلك الشخصي في اليوم المحدد من كل شهر.</div>
+    <label class="label">إيميل التذكير</label>
+    <div style="padding:12px;background:rgba(99,102,241,.1);border-radius:8px;border:1px solid var(--border2);color:var(--cyan);direction:ltr;font-size:14px">abdo.1990.1411@gmail.com</div>
+    <label class="label">يوم الإرسال (من كل شهر)</label><input id="f-deposit-day" class="input" type="number" dir="ltr" value="${currentDay}" min="1" max="28">
+    <button class="btn" style="margin-top:16px" onclick="saveDepositSettings()">💾 حفظ</button>
+  `);
+}
+
+function saveDepositSettings(){
+  const day = $('f-deposit-day').value || '25';
+  localStorage.setItem('sm-deposit-day', day);
+  closeModal();
+  saveSettingsToBackend();
+  toast('✅ تم حفظ إعدادات التذكير');
 }
 
 // ========== RENDER ==========
@@ -722,7 +847,7 @@ function draw(){
   if(!S.url){a.innerHTML=drawSetup();return;}
   if(S.loading){a.innerHTML=`<div class="ld"><div class="sp"></div><p style="color:var(--text2);margin-top:14px">جاري التحميل...</p></div>`;return;}
 
-  // Auto-deduct balance for current month (runs before render)
+  // Auto-deduct balance for current month
   runAutoDeduct(S.month);
 
   const m=S.month,st=getStats(m);
@@ -756,14 +881,14 @@ function draw(){
   </div>`;
 
   h+=`<div class="tabs">`;
-  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"whatsapp",l:"💬 واتساب"}].forEach(t=>{
+  [{id:"dashboard",l:"📊 التحكم"},{id:"people",l:"👥 الأشخاص"},{id:"email",l:"📧 الإيميلات"}].forEach(t=>{
     h+=`<button class="tab ${S.view===t.id?'on':''}" onclick="S.view='${t.id}';draw()">${t.l}</button>`;
   });
   h+=`</div><div class="content">`;
 
   if(S.view==="dashboard")h+=drawDash(m);
   else if(S.view==="people")h+=drawPeople();
-  else if(S.view==="whatsapp")h+=drawWA(m);
+  else if(S.view==="email")h+=drawEmail(m);
   h+=`</div>`;
 
   a.innerHTML=h;
@@ -792,11 +917,13 @@ function drawDash(m){
     const avBg=g.allPaid?'linear-gradient(135deg,#10b981,#059669)':'linear-gradient(135deg,#f59e0b,#d97706)';
     h+=`<div class="card"><div class="grp-header">
       <div style="display:flex;align-items:center;gap:10px"><div class="av" style="background:${avBg}">${g.person.name.charAt(0)}</div>
-      <div><div style="font-weight:600;font-size:16px">${g.person.name}</div><div style="color:var(--text3);font-size:13px;direction:ltr;text-align:right">${g.person.phone||''}</div></div></div>
-      <div><div class="badge" style="background:${g.allPaid?'#065f46':'#78350f'}">${g.total} ج</div>${g.person.balance ? `<div class="balance-badge">💰 ${g.person.balance}</div>` : ''}</div>
+      <div><div style="font-weight:600;font-size:16px">${g.person.name}</div><div style="color:var(--text3);font-size:13px">${g.person.email||''}</div></div></div>
+      <div><div class="badge" style="background:${g.allPaid?'#065f46':'#78350f'}">${g.total} ج</div>
+      ${g.person.balance ? `<div class="balance-badge">💰 ${g.person.balance}</div>` : ''}
+      <div class="payment-day-badge">📅 يوم ${g.person.paymentDay||1}</div></div>
     </div>`;
     g.subs.forEach(s=>{
-      h+=`<div class="grp-row"><div style="flex:1;min-width:0"><div class="svc-name">${s.service}</div><div class="svc-detail">${s.amount} ج — يوم ${s.dueDay}</div></div>
+      h+=`<div class="grp-row"><div style="flex:1;min-width:0"><div class="svc-name">${s.service}</div><div class="svc-detail">${s.amount} ج — يوم التجديد: ${s.dueDay}</div></div>
       <div class="s-btns">
         <button class="s-btn ${s.status.paidByPerson?'paid':''}" onclick="actToggle('${m}','${s.id}','paidByPerson')">${s.status.paidByPerson?'💵 دفع':'⏳'}</button>
         <button class="s-btn ${s.status.charged?'chg':''}" onclick="actToggle('${m}','${s.id}','charged')">${s.status.charged?'✅ خُصم':'✂️'}</button>
@@ -838,7 +965,11 @@ function drawPeople(){
     const pid=String(p.id),subs=S.data.subscriptions.filter(s=>String(s.personId)===pid);
     h+=`<div class="card"><div class="grp-header">
       <div style="display:flex;align-items:center;gap:10px"><div class="av" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">${p.name.charAt(0)}</div>
-      <div><div style="font-weight:600;font-size:16px">${p.name}</div><div style="color:var(--text3);font-size:13px">${p.phone||''} — ${subs.length} اشتراك</div>${p.balance ? `<div class="balance-badge">💰 ${p.balance} جنيه</div>` : ''}</div></div>
+      <div><div style="font-weight:600;font-size:16px">${p.name}</div>
+      <div style="color:var(--text3);font-size:13px">${p.email||''} — ${subs.length} اشتراك</div>
+      ${p.balance ? `<div class="balance-badge">💰 ${p.balance} جنيه</div>` : ''}
+      <div class="payment-day-badge">📅 يوم الدفع: ${p.paymentDay||1}</div>
+      </div></div>
       <div style="display:flex;gap:6px">
         <button class="btn-icon" onclick="modalAddBalance('${pid}')" title="إضافة رصيد">💰</button>
         <button class="btn-icon" onclick="modalEditPerson('${pid}')">✏️</button>
@@ -849,7 +980,7 @@ function drawPeople(){
       const sid=String(s.id);
       h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #0d1220">
         <div><span style="color:${s.active?'var(--text)':'var(--text3)'};font-weight:500;font-size:15px">${s.service}</span>
-        <span style="color:var(--text3);font-size:13px;margin-right:6px">${s.amount} ج — يوم ${s.dueDay} — ${s.type==='monthly'?'شهري🔄':'مرة'}</span>
+        <span style="color:var(--text3);font-size:13px;margin-right:6px">${s.amount} ج — يوم التجديد: ${s.dueDay} — ${s.type==='monthly'?'شهري🔄':'مرة'}</span>
         ${!s.active?'<span style="color:var(--red);font-size:10px">(متوقف)</span>':''}</div>
         <div style="display:flex;gap:4px">
           <button class="btn-icon" style="font-size:12px;padding:3px 6px" onclick="modalEditSub('${sid}')">✏️</button>
@@ -861,40 +992,49 @@ function drawPeople(){
   return h;
 }
 
-function openWhatsApp(idx){
-  const wd=waData(S.month);if(!wd[idx])return;
-  const msg=waText(wd[idx],S.month);
-  const phone=(wd[idx].person.phone||'').replace(/[^0-9]/g,'');
-  const waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
-  // Try multiple methods for PWA compatibility
-  const link=document.createElement('a');
-  link.href=waUrl;
-  link.target='_blank';
-  link.rel='noopener noreferrer';
-  link.style.display='none';
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(()=>document.body.removeChild(link),100);
-}
-
-function drawWA(m){
-  const wd=waData(m);
+function drawEmail(m){
+  const ed=emailData(m);
   let h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
   h+='<div style="font-size:15px;color:var(--text2)">رسائل تذكير لشهر <strong style="color:var(--text)">'+fmtMonth(m)+'</strong></div>';
-  h+='<button class="btn-icon" onclick="modalEditWaTemplate()" title="تعديل صيغة الرسالة">✏️</button>';
+  h+='<div style="display:flex;gap:6px">';
+  h+='<button class="btn-icon" onclick="modalEditEmailTemplate()" title="تعديل صيغة الإيميل">✏️</button>';
+  h+='<button class="btn-icon" onclick="modalDepositSettings()" title="إعدادات تذكير الإيداع">⚙️</button>';
   h+='</div>';
-  if(!wd.length)return h+'<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2);font-size:15px">الكل دفع!</p></div>';
-  wd.forEach(function(pd,idx){
-    var preview=waText(pd,m).substring(0,120).replace(/\n/g,' ')+'...';
+  h+='</div>';
+
+  if(ed.length > 1){
+    h+='<button class="btn btn-green" style="margin-bottom:14px" onclick="sendAllReminders(\''+m+'\')">📧 إرسال تذكير للكل ('+ed.length+')</button>';
+  }
+
+  if(!ed.length)return h+'<div class="empty"><div class="empty-icon">✅</div><p style="color:var(--text2);font-size:15px">الكل دفع!</p></div>';
+
+  ed.forEach(function(pd,idx){
+    var preview=emailText(pd,m,false).substring(0,120).replace(/\n/g,' ')+'...';
     h+='<div class="card"><div class="grp-header" style="flex-wrap:wrap;gap:8px">';
-    h+='<div style="display:flex;align-items:center;gap:10px"><div class="av sm" style="background:linear-gradient(135deg,#22c55e,#16a34a)">'+pd.person.name.charAt(0)+'</div>';
-    h+='<div><div style="font-weight:600;font-size:16px">'+pd.person.name+'</div><div style="color:var(--text3);font-size:13px">'+pd.total+' ج — '+pd.items.length+' اشتراك</div></div></div>';
-    h+='<div class="wa-btns">';
-    h+='<button class="wa-copy" onclick="copyWa('+idx+')">📋 نسخ</button>';
-    h+='<button class="wa-open" onclick="openWhatsApp('+idx+')">💬 واتساب</button>';
+    h+='<div style="display:flex;align-items:center;gap:10px"><div class="av sm" style="background:linear-gradient(135deg,var(--primary2),var(--primary))">'+pd.person.name.charAt(0)+'</div>';
+    h+='<div><div style="font-weight:600;font-size:16px">'+pd.person.name+'</div>';
+    h+='<div style="color:var(--text3);font-size:13px">'+pd.total+' ج — '+pd.items.length+' اشتراك — 📅 يوم '+pd.person.paymentDay+'</div>';
+    if(pd.person.email) h+='<div style="color:var(--cyan);font-size:12px;direction:ltr;text-align:right">'+pd.person.email+'</div>';
+    else h+='<div style="color:var(--red);font-size:12px">⚠️ لا يوجد إيميل</div>';
+    h+='</div></div>';
+    h+='<div class="email-btns">';
+    h+='<button class="email-copy" onclick="copyEmail('+idx+')">📋 نسخ</button>';
+    h+='<button class="email-send" onclick="sendReminderEmail(\''+pd.person.id+'\',\''+m+'\',false)" '+(pd.person.email?'':'disabled')+'>📧 إرسال</button>';
     h+='</div>';
-    h+='</div><div class="wa-prev" onclick="modalWaPreview('+idx+')">'+preview+'</div></div>';
+    h+='</div><div class="email-prev" onclick="modalEmailPreview('+idx+')">'+preview+'</div></div>';
   });
+
+  // Settings info section
+  const depositDay = localStorage.getItem('sm-deposit-day') || '25';
+  h+='<div class="settings-section">';
+  h+='<h4>⚙️ إعدادات التذكيرات التلقائية</h4>';
+  h+='<div style="color:var(--text2);font-size:13px;line-height:1.8">';
+  h+='<div>📧 <strong>تذكير مسبق:</strong> يُرسل قبل يوم الدفع بيومين</div>';
+  h+='<div>📧 <strong>تذكير متأخر:</strong> يُرسل بعد يوم الدفع بيومين (للاشتراكات غير المدفوعة فقط)</div>';
+  h+='<div>🏧 <strong>تذكير الإيداع:</strong> يوم '+depositDay+' من كل شهر</div>';
+  h+='<div style="margin-top:8px;color:var(--text3);font-size:11px">* التذكيرات التلقائية تعمل من خلال Google Apps Script. تأكد من تفعيل الـ Trigger.</div>';
+  h+='</div></div>';
+
   return h;
 }
 
@@ -905,12 +1045,13 @@ function drawSetup(){
     <div class="title" style="font-size:22px">اشتراكاتي</div>
     <p style="color:var(--text2);font-size:12px;margin-top:6px">ربط التطبيق بـ Google Sheet</p></div>
     <div class="setup-card">
-      <div class="step"><div class="step-n">1</div><div><div class="step-t">أنشئ Google Sheet جديد</div></div></div>
+      <div class="step"><div class="step-n">1</div><div><div class="step-t">أنشئ Google Sheet جديد من حساب betaqacredit</div></div></div>
       <div class="step"><div class="step-n">2</div><div><div class="step-t">Extensions → Apps Script</div></div></div>
       <div class="step"><div class="step-n">3</div><div><div class="step-t">الصق كود الـ Backend واحفظ</div></div></div>
       <div class="step"><div class="step-n">4</div><div><div class="step-t">شغّل setupSheets واقبل الصلاحيات</div></div></div>
-      <div class="step"><div class="step-n">5</div><div><div class="step-t">Deploy → New deployment → Web app</div><div class="step-d">Execute as: <b>Me</b> | Access: <b>Anyone</b></div></div></div>
-      <div class="step"><div class="step-n">6</div><div><div class="step-t">الصق الرابط هنا 👇</div></div></div>
+      <div class="step"><div class="step-n">5</div><div><div class="step-t">شغّل installTrigger عشان التذكيرات التلقائية</div></div></div>
+      <div class="step"><div class="step-n">6</div><div><div class="step-t">Deploy → New deployment → Web app</div><div class="step-d">Execute as: <b>Me</b> | Access: <b>Anyone</b></div></div></div>
+      <div class="step"><div class="step-n">7</div><div><div class="step-t">الصق الرابط هنا 👇</div></div></div>
     </div>
     <label class="label">رابط الـ Web App</label>
     <input id="f-url" class="input" dir="ltr" style="font-size:11px" placeholder="https://script.google.com/macros/s/...">
